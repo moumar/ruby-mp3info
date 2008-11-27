@@ -197,6 +197,9 @@ class Mp3Info
     @filename = filename
     @id3v2_options = id3v2_options
     @tag_parsing_enabled = @id3v2_options.delete(:parse_tags)
+    if @tag_parsing_enabled == nil
+      @tag_parsing_enabled = true
+    end
     reload
   end
 
@@ -420,7 +423,7 @@ class Mp3Info
   # Flush pending modifications to tags and close the file
   def close
     puts "close" if $DEBUG
-    if @tag_parsing_enabled
+    if !@tag_parsing_enabled
       return 
     end
     if @tag != @tag_orig
@@ -472,7 +475,7 @@ class Mp3Info
       end
     end
 
-    if @tag2.valid? && @tag2.changed?
+    if @tag2.changed?
       puts "@tag2 has changed" if $DEBUG
       raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename)
       tempfile_name = nil
