@@ -103,6 +103,7 @@ class ID3v2 < DelegateClass(Hash)
   # for read and write tag2 values.
   attr_reader :options
   
+  # possible options are described above ('options' attribute)
   # you can access this object like an hash, with [] and []= methods
   # special cases are ["disc_number"] and ["disc_total"] mirroring TPOS attribute
   def initialize(options = {})
