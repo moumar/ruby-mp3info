@@ -1,0 +1,115 @@
+=== 0.6.9 / 2008-09-16
+
+* now correctly remove trailing whitespaces form tag1 values
+* bugfix #21687 included: 'tweaked the MP3 frame synch code to parse certain mp3 files'
+
+=== 0.6.8 / 2008-08-20
+
+* support for MPEG 2.5 (thanks to Oleguer Huguet Ibars)
+* support for vbr files without Xing header
+
+=== 0.6.7 / 2008-06-26
+
+* Mp3Info#header hash now gives access to additional mpeg attributes (thanks to Andrew Kuklewicz)
+
+=== 0.6.6 / 2008-05-27
+
+* avoid reading tag that are too big (> 50Mb)
+* ruby 1.9 support (thanks to Dave Thomas)
+* FIXED: bug #20311 'Multiple APIC frames may be stored incorrectly'
+* FIXED: bug #20312 'doesn't use v2.2 frames for extracting meta data'
+
+=== 0.6.5 / 2008-04-19
+
+* added Mp3Info#audio_content method, to return "audio-only" boundaries from mp3, i.e. data without tags
+  (closes feature request #17230)
+* bugfix on reading id3 2.4 (size not syncsafed)
+* more robust tag decoding with bad tags
+
+=== 0.6.4 / 2008-04-16
+
+*  added @tag2["disc_number"] and @tag2["disc_total"] mirroring TPOS attribute (thanks to Harry Ohlsen)
+
+=== 0.6.3 / 2008-03-28
+
+* some internals modifications for the compatibility with ruby-audioinfo
+
+=== 0.6.2 / 2008-03-02
+
+* better handling of frames: 
+  decode and encode as raw string by default,
+  or handle charset decoding/encoding for /^T/ and 
+  COMM frames
+
+=== 0.6.1 / 2008-02-28
+
+* FIXED: fails to read id3v2 tags when iconv fails
+
+=== 0.6 / 2008-02-24
+
+* FIXED: correct handling of encoding in id3v2 tags
+
+=== 0.5.1 / 2007-09-10
+
+* ADDED: Mp3Info#reload method to reload the file from the disk
+* FIXED: bug [#2604] Not able to delete tag1
+* FIXED: bug #3401 'id3v2.rb dies when trying to read a certain mp3'
+* FIXED: bug #2957 'Error message "Can't define singleton"'
+* FIXED: bug #3068 'require_gem ("ruby-mp3info") doesn't works'
+* FIXED: bug #11967 "Leading 'h' from 'http://' gets chopped on URL fields"
+* PATCHED: with patch #3157 'Fix for 64 bit Ruby'
+
+=== 0.5 / 2005-12-06
+
+* id3v2 writing and removing support added. tag2 attribute is r/w now
+* max guess size to find a valid frame set to 2Mb
+* implemented a new class ID3v2, ID2TAGS moved into it
+* Mp3Info.tag is r/w now and has priority over @tag1 and @tag2 when writing
+* added Mp3Info#rename() method to change the filename written at close
+* clean up: all overloaded standards classes replaced by including modules
+* FIXED bug in reading id3v2 tags tagged with olds versions of "mp3ext" ( http://www.mutschler.de/mp3ext/ )
+* FIXED bug on calculating id3v2 frame size
+* FIXED bug when multiple TLEN tags
+* FIXED bug when converting text tag from Unicode
+* FIXED bug: file was not closed, causing too many opened files and test failure on win32
+
+=== 0.4 / 2005-04-26
+
+* fixes in vbr mode
+* removed extract_info_from_head() function
+* now try several times to find a good header frame before giving up
+* correct handling of unicode in v2 tags. Require standard "iconv" library if such tags are used
+* FIXED if a tag appears more than one time, create an array with every value found for this tag
+
+=== 0.3 / 2004-05-04
+
+* massive changes of most of the code to make it easier to read & hopefully run faster
+* ID2TAGS hash is just informative now, no use of it in the code. id3v2 tag fields are read in directly
+* added support for id3 v2.2 and v2.4 (0.2.1 only supported v2.3)
+* much improved vbr duration guessing
+* made Mp3Info#to_s output to be prettier
+* moved hastag1? and hastag2? to be class booleans instead of functions (now named hastag1 and hastag2)
+* fixed a bug on computing "error_protection" attribute
+* new attribute "tag", which is a sort of "universal" tag, regardless of the tag version, 1 or 2, with the same keys as @tag1
+* new method hastag?, which test the presence of any tag
+
+=== 0.2.1 / 2003-09-04
+
+* filename attribute added
+* mp3 files are opened read-only now [Alan Davies <alan__DOT_davies__AT__thomson.com>]
+* Mp3Info#initialize: bugfixes [Alan Davies <alan__DOT_davies__AT__thomson.com>]
+* put NULLs in year field in id3v1 tags instead of zeros [Alan Davies <alan__DOT_davies__AT__thomson.com>]
+* Mp3Info#gettag1: remove null at end of strings [Alan Davies <alan__DOT_davies__AT__thomson.com>]
+* Mp3Info#extract_infos_from_head(): some brackets missed [Alan Davies <alan__DOT_davies__AT__thomson.com>]
+
+=== 0.2 / 2003-08-18
+
+* writing, reading and removing of id3v1 tags
+* reading of id3v2 tags
+* test suite improved
+* to_s method added
+* length attribute is a Float now
+
+=== 0.1 / 2003-03-17
+
+* Initial version
