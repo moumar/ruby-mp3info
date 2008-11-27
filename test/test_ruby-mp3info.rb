@@ -452,6 +452,22 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
   end
 
+  def test_parse_tags_disabled
+    write_temp_file(DUMMY_TAG2)
+    Mp3Info.open(TEMP_FILE, :parse_tags => false) do |mp3|
+      assert mp3.tag.empty?
+      assert mp3.tag1.empty?
+      assert mp3.tag2.empty?
+      mp3.tag["artist"] = "some dummy tag"
+      mp3.tag2["TIT2"] = "title 2"
+      mp3.flush
+      # tag should not be written
+      assert mp3.tag.empty?
+      assert mp3.tag1.empty?
+      assert mp3.tag2.empty?
+    end
+  end
+
   def compute_audio_content_mp3_digest(mp3)
     pos, size = mp3.audio_content
     data = File.open(mp3.filename) do |f|
