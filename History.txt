@@ -1,3 +1,7 @@
+=== 0.6.10 / 2008-11-27
+
+* processing of tags (read and write) can be disabled with :parse_tags => false
+
 === 0.6.9 / 2008-09-16
 
 * now correctly remove trailing whitespaces form tag1 values

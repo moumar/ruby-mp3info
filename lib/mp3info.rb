@@ -18,7 +18,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.6.9"
+  VERSION = "0.6.10"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -189,17 +189,18 @@ class Mp3Info
     end
   end
 
-  # Instantiate Mp3Info object with name +filename+ and an
-  # :parse_tags
-  # options hash for ID3v2#new underlying object
-  def initialize(filename, id3v2_options = {:parse_tags => true})
+  # Instantiate Mp3Info object with name +filename+.
+  # options hash is used for ID3v2#new. 
+  # You can specify :parse_tags => false to disable the processing 
+  # of the tags (read and write).
+  def initialize(filename, options = {})
     warn("#{self.class}::new() does not take block; use #{self.class}::open() instead") if block_given?
     @filename = filename
-    @id3v2_options = id3v2_options
-    @tag_parsing_enabled = @id3v2_options.delete(:parse_tags)
+    @tag_parsing_enabled = options.delete(:parse_tags)
     if @tag_parsing_enabled == nil
       @tag_parsing_enabled = true
     end
+    @id3v2_options = options
     reload
   end
 
