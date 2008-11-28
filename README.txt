@@ -3,6 +3,7 @@ ruby-mp3info
 by Guillaume Pierronnet
 * http://ruby-mp3info.rubyforge.org/
 * http://rubyforge.org/projects/ruby-mp3info/
+* mercurial repository since v0.6.10: http://www.bitbucket.org/moumar/ruby-mp3info/overview/
 
 == DESCRIPTION:
 
