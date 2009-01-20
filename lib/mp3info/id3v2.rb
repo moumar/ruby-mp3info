@@ -261,13 +261,13 @@ class ID3v2 < DelegateClass(Hash)
 	  begin
 	    Iconv.iconv(@options[:encoding], TEXT_ENCODINGS[encoding], out).first
 	  rescue Iconv::Failure
-	    out
+	    return out
 	  end
 	else
-	  out
+	  return out
 	end
       else
-        raw_value
+        return raw_value
     end
   end
 
@@ -324,7 +324,7 @@ class ID3v2 < DelegateClass(Hash)
     data_io = @io.read(size)
     data = decode_tag(name, data_io)
     # remove padding zeros for textual tags
-    if name =~ /^T/
+    if data && name =~ /^T/
       data.sub!(/\0*$/, '')
     end
 
