@@ -18,7 +18,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.6.10"
+  VERSION = "0.6.11"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -305,7 +305,7 @@ class Mp3Info
 	@vbr = true
       else
 	# for cbr, calculate duration with the given bitrate
-	stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.valid? ? @tag2.io_position : 0)
+	stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
 	@length = ((stream_size << 3)/1000.0)/@bitrate
         # read the first 100 frames and decide if the mp3 is vbr and needs full scan
         begin
@@ -386,7 +386,7 @@ class Mp3Info
 
   # Does the file has an id3v1 or v2 tag?
   def hastag?
-    hastag1? or hastag2?
+    hastag1? || hastag2?
   end
 
   # Does the file has an id3v1 tag?
@@ -396,7 +396,7 @@ class Mp3Info
 
   # Does the file has an id3v2 tag?
   def hastag2?
-    @tag2.valid?
+    @tag2.parsed?
   end
 
   # write to another filename at close()
@@ -482,7 +482,7 @@ class Mp3Info
       tempfile_name = nil
       File.open(@filename, 'rb+') do |file|
 	#if tag2 already exists, seek to end of it
-	if @tag2.valid?
+	if @tag2.parsed?
 	  file.seek(@tag2.io_position)
 	end
   #      if @file.read(3) == "ID3"
@@ -543,7 +543,7 @@ private
     unless @tag1_parsed         # v1 tag at end
       # this preserves the file pos if tag2 found, since gettag2 leaves
       # the file at the best guess as to the first MPEG frame
-      pos = (@tag2.valid? ? @file.pos : 0)
+      pos = (@tag2.io_position || 0)
       # seek to where id3v1 tag should be
       @file.seek(-TAG1_SIZE, IO::SEEK_END) 
       if @file.read(3) == "TAG"

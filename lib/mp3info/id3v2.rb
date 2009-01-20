@@ -123,13 +123,13 @@ class ID3v2 < DelegateClass(Hash)
     #TAGS.keys.each { |k| @hash[k] = nil }
     @hash_orig = {}
     super(@hash)
-    @valid = false
+    @parsed = false
     @version_maj = @version_min = nil
   end
 
   # does this tag has been correctly read ?
-  def valid?
-    @valid
+  def parsed?
+    @parsed
   end
 
   # does this tag has been changed ?
@@ -140,7 +140,7 @@ class ID3v2 < DelegateClass(Hash)
   # full version of this tag (like "2.3.0") or nil
   # if tag was not correctly read
   def version
-    if valid?
+    if @version_maj && @version_min
       "2.#{@version_maj}.#{@version_min}"
     else
       nil
@@ -156,29 +156,26 @@ class ID3v2 < DelegateClass(Hash)
     @unsync, ext_header, experimental, footer = (0..3).collect { |i| flags[i].chr == '1' }
     raise(ID3v2Error, "can't find version_maj ('#{version_maj}')") unless [2, 3, 4].include?(version_maj)
     @version_maj, @version_min = version_maj, version_min
-    @valid = true
     @tag_length = @io.get_syncsafe
-    case @version_maj
-      when 2
-        read_id3v2_2_frames
-      when 3, 4
-        # seek past extended header if present
-        @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
-        read_id3v2_3_frames
+    @io_position = original_pos + @tag_length
+    
+    @parsed = true
+    begin
+      case @version_maj
+        when 2
+          read_id3v2_2_frames
+        when 3, 4
+          # seek past extended header if present
+          @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
+          read_id3v2_3_frames
+      end
+    rescue ID3v2Error => e
+      warn("warning: id3v2 tag not fully parsed: #{e.message}")
     end
 
-    @io.seek(original_pos + @tag_length, IO::SEEK_SET)
-
-    # skip padding zeros at the end of the tag
-    while @io.getbyte == 0; end
-
-    @io.seek(-1, IO::SEEK_CUR)
-    @io_position = @io.pos
-    
     @hash_orig = @hash.dup
     #no more reading
     @io = nil
-    # we should now have io sitting at the first MPEG frame
   end
 
   # dump tag for writing. Version is always 2.#{WRITE_VERSION}.0.
@@ -321,7 +318,7 @@ class ID3v2 < DelegateClass(Hash)
     puts "add_value_to_tag2" if $DEBUG
 
     if size > 50_000_000
-      raise ID3v2Error, "tag size too big for tag '#{name}'"
+      raise ID3v2Error, "tag size is > 50_000_000"
     end
       
     data_io = @io.read(size)
