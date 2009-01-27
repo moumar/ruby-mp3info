@@ -1,3 +1,8 @@
+=== 0.6.11 / 2009-01-27
+
+* the library doesn't raise an ID3v2Error anymore when a id3v2 tag size is incorrect, but just output
+  a warning. (Fixes bug #23619)
+
 === 0.6.10 / 2008-11-27
 
 * processing of tags (read and write) can be disabled with :parse_tags => false
