@@ -1,3 +1,7 @@
+=== 0.6.12 / 2009-02-23
+
+* fixed bug when @tag2["TLEN"] == 0
+
 === 0.6.11 / 2009-01-27
 
 * the library doesn't raise an ID3v2Error anymore when a id3v2 tag size is incorrect, but just output
