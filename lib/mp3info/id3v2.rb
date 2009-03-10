@@ -255,6 +255,9 @@ class ID3v2 < DelegateClass(Hash)
       when /^T/
 	encoding = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)   
 	out = raw_value[1..-1] 
+        if encoding == nil || TEXT_ENCODINGS[encoding] == nil 
+          return out
+        end
 	# we need to convert the string in order to match
 	# the requested encoding
 	if out && encoding != @text_encoding_index
@@ -276,7 +279,7 @@ class ID3v2 < DelegateClass(Hash)
   def read_id3v2_3_frames
     loop do # there are 2 ways to end the loop
       name = @io.read(4)
-      if name.getbyte(0) == 0 or name == "MP3e" #bug caused by old tagging application "mp3ext" ( http://www.mutschler.de/mp3ext/ )
+      if name.nil? || name.getbyte(0) == 0 || name == "MP3e" #bug caused by old tagging application "mp3ext" ( http://www.mutschler.de/mp3ext/ )
         @io.seek(-4, IO::SEEK_CUR)    # 1. find a padding zero,
 	seek_to_v2_end
         break
@@ -299,7 +302,7 @@ class ID3v2 < DelegateClass(Hash)
   def read_id3v2_2_frames
     loop do
       name = @io.read(3)
-      if name.getbyte(0) == 0
+      if name.nil? || name.getbyte(0) == 0
         @io.seek(-3, IO::SEEK_CUR)
 	seek_to_v2_end
         break
@@ -348,7 +351,7 @@ class ID3v2 < DelegateClass(Hash)
   ###  frame, which should be first 0xff byte after id3v2 padding zero's
   def seek_to_v2_end
     until @io.getbyte == 0xff
-      raise EOFError if @io.eof?
+      raise ID3v2Error, "got EOF before finding id3v2 end" if @io.eof?
     end
     @io.seek(-1, IO::SEEK_CUR)
   end
