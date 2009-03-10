@@ -305,6 +305,7 @@ class Mp3InfoTest < Test::Unit::TestCase
         "comments"      => "\000engiTunPGAP\0000\000\000",
         "year"          => 2006,
         "album"         => "Air Max",
+        "artist"        => "Grems Aka Supermicro",
         "tracknum"      => 1 }
       # test universal tag
       assert_equal expected_tag, mp3.tag
