@@ -82,7 +82,7 @@ class Mp3Info
   # for id3v2.2
   TAG_MAPPING_2_2 = { 
     "title"    => "TT2",
-    "artist"   => "TP2", 
+    "artist"   => "TP1", 
     "album"    => "TAL",
     "year"     => "TYE",
     "tracknum" => "TRK",
