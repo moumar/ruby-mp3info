@@ -5,7 +5,10 @@ require "mp3info/extension_modules"
 
 class ID3v2Error < StandardError ; end
 
-# This class is not intended to be used directly
+# This class can be used to decode id3v2 tags from files, like .mp3 or .ape for example.
+# It works like a hash, where key represents the tag name as 3 or 4 upper case letters
+# (respectively related to 2.2 and 2.3+ tag) and value represented as array or raw value.
+# Written version is always 2.3.
 class ID3v2 < DelegateClass(Hash) 
   
   # Major version used when writing tags
@@ -86,6 +89,69 @@ class ID3v2 < DelegateClass(Hash)
     "WPAY" => "Payment",
     "WPUB" => "Publishers official webpage",
     "WXXX" => "User defined URL link frame"
+  }
+
+  # Translate V2 to V3 tags
+  TAG_MAPPING_2_2_to_2_3 = {
+    "BUF"   => "RBUF",
+    "COM"   => "COMM",
+    "CRA"   => "AENC",
+    "EQU"   => "EQUA",
+    "ETC"   => "ETCO",
+    "GEO"   => "GEOB",
+    "MCI"   => "MCDI",
+    "MLL"   => "MLLT",
+    "PIC"   => "APIC",
+    "POP"   => "POPM",
+    "REV"   => "RVRB",
+    "RVA"   => "RVAD",
+    "SLT"   => "SYLT",
+    "STC"   => "SYTC",
+    "TAL"   => "TALB",
+    "TBP"   => "TBPM",
+    "TCM"   => "TCOM",
+    "TCO"   => "TCON",
+    "TCR"   => "TCOP",
+    "TDA"   => "TDAT",
+    "TDY"   => "TDLY",
+    "TEN"   => "TENC",
+    "TFT"   => "TFLT",
+    "TIM"   => "TIME",
+    "TKE"   => "TKEY",
+    "TLA"   => "TLAN",
+    "TLE"   => "TLEN",
+    "TMT"   => "TMED",
+    "TOA"   => "TOPE",
+    "TOF"   => "TOFN",
+    "TOL"   => "TOLY",
+    "TOR"   => "TORY",
+    "TOT"   => "TOAL",
+    "TP1"   => "TPE1",
+    "TP2"   => "TPE2",
+    "TP3"   => "TPE3",
+    "TP4"   => "TPE4",
+    "TPA"   => "TPOS",
+    "TPB"   => "TPUB",
+    "TRC"   => "TSRC",
+    "TRD"   => "TRDA",
+    "TRK"   => "TRCK",
+    "TSI"   => "TSIZ",
+    "TSS"   => "TSSE",
+    "TT1"   => "TIT1",
+    "TT2"   => "TIT2",
+    "TT3"   => "TIT3",
+    "TXT"   => "TEXT",
+    "TXX"   => "TXXX",
+    "TYE"   => "TYER",
+    "UFI"   => "UFID",
+    "ULT"   => "USLT",
+    "WAF"   => "WOAF",
+    "WAR"   => "WOAR",
+    "WAS"   => "WOAS",
+    "WCM"   => "WCOM",
+    "WCP"   => "WCOP",
+    "WPB"   => "WPB",
+    "WXX"   => "WXXX",
   }
 
   # See id3v2.4.0-structure document, at section 4.
@@ -188,20 +254,28 @@ class ID3v2 < DelegateClass(Hash)
     @hash.each do |k, v|
       next unless v
       next if v.respond_to?("empty?") and v.empty?
+      
+      # Automagically translate V2 to V3 tags
+      k = TAG_MAPPING_2_2_to_2_3[k] if TAG_MAPPING_2_2_to_2_3.has_key?(k)
+
       # doesn't encode id3v2.2 tags, which have 3 characters
       next if k.size != 4 
-      data = encode_tag(k, v.to_s, WRITE_VERSION)
-      #data << "\x00"*2 #End of tag
+      
+      # Output one flag for each array element, or one only if it's not an array
+      [v].flatten.each do |value|
+        data = encode_tag(k, value.to_s, WRITE_VERSION)
+        #data << "\x00"*2 #End of tag
 
-      tag << k[0,4]   #4 characte max for a tag's key
-      #tag << to_syncsafe(data.size) #+1 because of the language encoding byte
-      size = data.size
-      if RUBY_VERSION >= "1.9.0"
-        size = data.dup.force_encoding("binary").size
+        tag << k[0,4]   #4 characte max for a tag's key
+        #tag << to_syncsafe(data.size) #+1 because of the language encoding byte
+        size = data.size
+        if RUBY_VERSION >= "1.9.0"
+          size = data.dup.force_encoding("binary").size
+        end
+        tag << [size].pack("N") #+1 because of the language encoding byte
+        tag << "\x00"*2 #flags
+        tag << data
       end
-      tag << [size].pack("N") #+1 because of the language encoding byte
-      tag << "\x00"*2 #flags
-      tag << data
     end
 
     tag_str = "ID3"
@@ -236,6 +310,7 @@ class ID3v2 < DelegateClass(Hash)
 
     case name
       when "COMM"
+      puts "encode COMM: enc: #{text_encoding_index}, lang: #{@options[:lang]}, str: #{transcoded_value.dump}" if $DEBUG
 	[ text_encoding_index , @options[:lang], 0, transcoded_value ].pack("ca3ca*")
       when /^T/
 	text_encoding_index.chr + transcoded_value
@@ -248,27 +323,24 @@ class ID3v2 < DelegateClass(Hash)
   def decode_tag(name, raw_value)
     puts("decode_tag(#{name.inspect}, #{raw_value.inspect})") if $DEBUG
     case name
-      when "COMM"
+      when /^COM/
         #FIXME improve this
 	encoding, lang, str = raw_value.unpack("ca3a*") 
 	out = raw_value.split(0.chr).last
       when /^T/
 	encoding = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)   
 	out = raw_value[1..-1] 
-        if encoding == nil || TEXT_ENCODINGS[encoding] == nil 
-          return out
-        end
 	# we need to convert the string in order to match
 	# the requested encoding
-	if out && encoding != @text_encoding_index
+	if encoding && TEXT_ENCODINGS[encoding] && out && encoding != @text_encoding_index
 	  begin
-	    Iconv.iconv(@options[:encoding], TEXT_ENCODINGS[encoding], out).first
+	    out = Iconv.iconv(@options[:encoding], TEXT_ENCODINGS[encoding], out).first
 	  rescue Iconv::Failure
-	    return out
 	  end
-	else
-	  return out
 	end
+        # remove padding zeros for textual tags
+        out.sub!(/\0*$/, '')
+        return out
       else
         return raw_value
     end
@@ -326,10 +398,6 @@ class ID3v2 < DelegateClass(Hash)
       
     data_io = @io.read(size)
     data = decode_tag(name, data_io)
-    # remove padding zeros for textual tags
-    if data && name =~ /^T/
-      data.sub!(/\0*$/, '')
-    end
 
     if self["TPOS"] =~ /(\d+)\s*\/\s*(\d+)/
       self["disc_number"] = $1.to_i
@@ -360,11 +428,5 @@ class ID3v2 < DelegateClass(Hash)
   def to_syncsafe(num)
     ( (num<<3) & 0x7f000000 )  + ( (num<<2) & 0x7f0000 ) + ( (num<<1) & 0x7f00 ) + ( num & 0x7f )
   end
-
-#  def method_missing(meth, *args)
-#    m = meth.id2name
-#    return nil if TAGS.has_key?(m) and self[m].nil?
-#    super
-#  end
 end
 

@@ -302,7 +302,8 @@ class Mp3InfoTest < Test::Unit::TestCase
       expected_tag = { 
         "genre_s"       => "Hip Hop/Rap",
         "title"         => "Intro",
-        "comments"      => "\000engiTunPGAP\0000\000\000",
+        #"comments"      => "\000engiTunPGAP\0000\000\000",
+        "comments"      => "0",
         "year"          => 2006,
         "album"         => "Air Max",
         "artist"        => "Grems Aka Supermicro",
@@ -319,13 +320,13 @@ class Mp3InfoTest < Test::Unit::TestCase
       mp3.tag.comments = "comments"
       mp3.flush
       expected_tag = { 
-        "artist"=>"toto",
-        "genre_s"=>"Hip Hop/Rap",
-        "title"=>"Intro",
-        "comments"=>"comments",
-        "year"=>2006,
-        "album"=>"Air Max",
-        "tracknum"=>1}
+        "artist" => "toto",
+        "genre_s" => "Hip Hop/Rap",
+        "title" => "Intro",
+        "comments" => "comments",
+        "year" => 2006,
+        "album" => "Air Max",
+        "tracknum" => 1}
 
       assert_equal expected_tag, mp3.tag
     end
