@@ -518,6 +518,26 @@ class Mp3Info
     s
   end
 
+  # iterates over each mpeg frame over the file, allowing you to 
+  # write some funny things, like an mpeg lossless cutter, or frame
+  # counter, or whatever you like ;)
+  def each_frame
+    @file.seek(@first_frame_pos, File::SEEK_SET)
+    loop do
+      head = @file.read(4).unpack("N").first
+      frame = get_frames_infos(head)
+      if frame[:layer] == 1
+        frame[:length] = (12 * frame[:bitrate]*1000.0 / frame[:samplerate] + (frame[:padding] ? 1 : 0))*4 
+      else # layer 2 and 3
+        frame[:length] = 144 * (frame[:bitrate]*1000.0 / frame[:samplerate]) + (frame[:padding] ? 1 : 0)
+      end
+      frame[:length] = frame[:length].to_i
+      @file.seek(frame[:length] -4, File::SEEK_CUR)
+      yield frame
+      #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @file.pos #{@file.pos}"
+      break if @file.eof?
+    end
+  end
 
 private
   
@@ -603,25 +623,12 @@ private
 
   def frame_scan(frame_limit = nil)
     frame_count = bitrate_sum = 0
-    @file.seek(@first_frame_pos, File::SEEK_SET)
-    current_frame = nil
-    loop do
-      head = @file.read(4).unpack("N").first
-      current_frame = get_frames_infos(head)
-      if current_frame[:layer] == 1
-        frame_length = (12 * current_frame[:bitrate]*1000.0 / current_frame[:samplerate] + (current_frame[:padding] ? 1 : 0))*4 
-      else # layer 2 and 3
-        frame_length = 144 * (current_frame[:bitrate]*1000.0 / current_frame[:samplerate]) + (current_frame[:padding] ? 1 : 0)
-      end
-      frame_length = frame_length.to_i
-      bitrate_sum += current_frame[:bitrate]
+    each_frame do |frame|
+      bitrate_sum += frame[:bitrate]
       frame_count += 1
-      @file.seek(frame_length -4, File::SEEK_CUR)
-      #puts "frame #{frame_count} len #{frame_length} br #{current_frame[:bitrate]} @file.pos #{@file.pos}"
-      break if @file.eof?
       break if frame_limit && (frame_count >= frame_limit)
     end
-
+    
     average_bitrate = bitrate_sum/frame_count.to_f
     length = (frame_count-1) * SAMPLES_PER_FRAME[@layer][@mpeg_version] / Float(@samplerate)
     [average_bitrate, length]
