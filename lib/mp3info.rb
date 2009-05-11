@@ -18,7 +18,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.6.12"
+  VERSION = "0.6.13"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -259,7 +259,7 @@ class Mp3Info
       5.times do
 	head = find_next_frame() 
         @first_frame_pos = @file.pos - 4
-        current_frame = get_frames_infos(head)
+        current_frame = Mp3Info.get_frames_infos(head)
 	@mpeg_version = current_frame[:mpeg_version]
 	@layer = current_frame[:layer]
 	@header[:error_protection] = head[16] == 0 ? true : false
@@ -267,11 +267,11 @@ class Mp3Info
 	@samplerate = current_frame[:samplerate]
 	@header[:padding] = current_frame[:padding]
 	@header[:private] = head[8] == 0 ? true : false
-	@channel_mode = CHANNEL_MODE[@channel_num = bits(head, 7,6)]
-	@header[:mode_extension] = bits(head, 5,4)
+	@channel_mode = CHANNEL_MODE[@channel_num = Mp3Info.bits(head, 7,6)]
+	@header[:mode_extension] = Mp3Info.bits(head, 5,4)
 	@header[:copyright] = (head[3] == 1 ? true : false)
 	@header[:original] = (head[2] == 1 ? true : false)
-	@header[:emphasis] = bits(head, 1,0)
+	@header[:emphasis] = Mp3Info.bits(head, 1,0)
 	@vbr = false
 	found = true
         break
@@ -328,27 +328,6 @@ class Mp3Info
     ensure
       @file.close
     end
-  end
-
-  def get_frames_infos(head)
-    # be sure we are in sync
-    if ((head & 0xffe00000) != 0xffe00000)    || # 11 bit MPEG frame sync
-       ((head & 0x00060000) == 0x00060000)    || #  2 bit layer type
-       ((head & 0x0000f000) == 0x0000f000)    || #  4 bit bitrate
-       ((head & 0x0000f000) == 0x00000000)    || #        free format bitstream
-       ((head & 0x00000c00) == 0x00000c00)    || #  2 bit frequency
-       ((head & 0xffff0000) == 0xfffe0000) 
-      raise Mp3InfoInternalError 
-    end
-    mpeg_version = [2.5, nil, 2, 1][bits(head, 20,19)]
-    
-    layer = LAYER[bits(head, 18,17)]
-    raise Mp3InfoInternalError if layer == nil || mpeg_version == nil
-    { :layer => layer,
-      :bitrate => BITRATE[mpeg_version][layer-1][bits(head, 15,12)-1],
-      :samplerate => SAMPLERATE[mpeg_version][bits(head, 11,10)],
-      :mpeg_version => mpeg_version,
-      :padding => (head[9] == 1) }
   end
 
   # "block version" of Mp3Info::new()
@@ -415,7 +394,12 @@ class Mp3Info
     end
     [pos, length]
   end
-  
+
+  # return the length in seconds of one frame
+  def frame_length
+    SAMPLES_PER_FRAME[@layer][@mpeg_version] / Float(@samplerate)
+  end
+
   # Flush pending modifications to tags and close the file
   def close
     puts "close" if $DEBUG
@@ -520,27 +504,56 @@ class Mp3Info
 
   # iterates over each mpeg frame over the file, allowing you to 
   # write some funny things, like an mpeg lossless cutter, or frame
-  # counter, or whatever you like ;)
+  # counter, or whatever you like ;) +frame+ is a hash with the following keys:
+  # :layer, :bitrate, :samplerate, :mpeg_version, :padding and :size (in bytes)
   def each_frame
-    @file.seek(@first_frame_pos, File::SEEK_SET)
-    loop do
-      head = @file.read(4).unpack("N").first
-      frame = get_frames_infos(head)
-      if frame[:layer] == 1
-        frame[:length] = (12 * frame[:bitrate]*1000.0 / frame[:samplerate] + (frame[:padding] ? 1 : 0))*4 
-      else # layer 2 and 3
-        frame[:length] = 144 * (frame[:bitrate]*1000.0 / frame[:samplerate]) + (frame[:padding] ? 1 : 0)
+    File.open(@filename, 'r') do |file|
+      file.seek(@first_frame_pos, File::SEEK_SET)
+      loop do
+        head = file.read(4).unpack("N").first
+        frame = Mp3Info.get_frames_infos(head)
+        file.seek(frame[:size] -4, File::SEEK_CUR)
+        yield frame
+        #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @file.pos #{@file.pos}"
+        break if file.eof?
       end
-      frame[:length] = frame[:length].to_i
-      @file.seek(frame[:length] -4, File::SEEK_CUR)
-      yield frame
-      #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @file.pos #{@file.pos}"
-      break if @file.eof?
     end
   end
 
 private
   
+  def Mp3Info.get_frames_infos(head)
+    # be sure we are in sync
+    if ((head & 0xffe00000) != 0xffe00000)    || # 11 bit MPEG frame sync
+       ((head & 0x00060000) == 0x00060000)    || #  2 bit layer type
+       ((head & 0x0000f000) == 0x0000f000)    || #  4 bit bitrate
+       ((head & 0x0000f000) == 0x00000000)    || #        free format bitstream
+       ((head & 0x00000c00) == 0x00000c00)    || #  2 bit frequency
+       ((head & 0xffff0000) == 0xfffe0000) 
+      raise Mp3InfoInternalError 
+    end
+    mpeg_version = [2.5, nil, 2, 1][bits(head, 20,19)]
+    
+    layer = LAYER[bits(head, 18,17)]
+    raise Mp3InfoInternalError if layer == nil || mpeg_version == nil
+
+    bitrate = BITRATE[mpeg_version][layer-1][bits(head, 15,12)-1]
+    samplerate = SAMPLERATE[mpeg_version][bits(head, 11,10)]
+    padding = (head[9] == 1)
+    if layer == 1
+      size = (12 * bitrate*1000.0 / samplerate + (padding ? 1 : 0))*4 
+    else # layer 2 and 3
+      size = 144 * (bitrate*1000.0 / samplerate) + (padding ? 1 : 0)
+    end
+    size = size.to_i
+    { :layer => layer,
+      :bitrate => bitrate,
+      :samplerate => samplerate,
+      :mpeg_version => mpeg_version,
+      :padding => padding,
+      :size => size }
+  end
+
   ### parses the id3 tags of the currently open @file
   def parse_tags
     return if @file.stat.size < TAG1_SIZE  # file is too small
@@ -607,7 +620,7 @@ private
         raise(Mp3InfoError, "end of file reached") if @file.eof?
         head = 0xff000000 + (data.getbyte(0) << 16) + (data.getbyte(1) << 8) + data.getbyte(2)
         begin
-          get_frames_infos(head)
+          Mp3Info.get_frames_infos(head)
           return head
         rescue Mp3InfoInternalError
           @file.seek(-3, IO::SEEK_CUR)
@@ -630,14 +643,14 @@ private
     end
     
     average_bitrate = bitrate_sum/frame_count.to_f
-    length = (frame_count-1) * SAMPLES_PER_FRAME[@layer][@mpeg_version] / Float(@samplerate)
+    length = (frame_count-1) * frame_length
     [average_bitrate, length]
   end
 
 
   ### returns the selected bit range (b, a) as a number
   ### NOTE: b > a  if not, returns 0
-  def bits(number, b, a)
+  def self.bits(number, b, a)
     t = 0
     b.downto(a) { |i| t += t + number[i] }
     t
