@@ -307,23 +307,15 @@ class Mp3Info
 	# for cbr, calculate duration with the given bitrate
 	stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
 	@length = ((stream_size << 3)/1000.0)/@bitrate
-        full_scan_occured = false
         # read the first 100 frames and decide if the mp3 is vbr and needs full scan
         begin
           bitrate, length = frame_scan(100)
           if @bitrate != bitrate
             @vbr = true
             @bitrate, @length = frame_scan
-            full_scan_occured = true
           end
         rescue Mp3InfoInternalError
         end
-	if (tlen = @tag2["TLEN"]) && !full_scan_occured
-	  # but if another duration is given and it isn't close (within 5%)
-	  #  assume the mp3 is vbr and go with the given duration
-	  @length = (tlen.is_a?(Array) ? tlen.last : tlen).to_i/1000
-	  @bitrate = (stream_size / @bitrate) / 1024
-	end
       end
     ensure
       @file.close
