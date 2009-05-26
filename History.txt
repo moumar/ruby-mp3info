@@ -1,4 +1,10 @@
-=== 0.6.13 / 2009-XX-XX
+=== 0.6.13 / 2009-05-26
+
+* fixed bad mapping of artist inside id3 2.2
+* adding fusil fuzzer tests
+* Improved support for id3v2.2 to id3v2.3 field mapping
+* each_frame() iterator
+* removed @bitrate & @length computation based on @tag2[TLEN]
 
 === 0.6.12 / 2009-02-23
 
