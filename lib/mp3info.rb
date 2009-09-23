@@ -1,5 +1,4 @@
 # coding:utf-8
-# $Id: mp3info.rb 98 2008-09-16 11:07:31Z moumar $
 # License:: Ruby
 # Author:: Guillaume Pierronnet (mailto:moumar_AT__rubyforge_DOT_org)
 # Website:: http://ruby-mp3info.rubyforge.org/

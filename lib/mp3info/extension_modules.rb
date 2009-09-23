@@ -1,3 +1,8 @@
+# coding:utf-8
+# License:: Ruby
+# Author:: Guillaume Pierronnet (mailto:moumar_AT__rubyforge_DOT_org)
+# Website:: http://ruby-mp3info.rubyforge.org/
+
 class Mp3Info 
   module HashKeys #:nodoc:
     ### lets you specify hash["key"] as hash.key
