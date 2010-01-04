@@ -256,56 +256,56 @@ class Mp3Info
 
       head = nil
       5.times do
-	head = find_next_frame() 
+        head = find_next_frame() 
         @first_frame_pos = @file.pos - 4
         current_frame = Mp3Info.get_frames_infos(head)
-	@mpeg_version = current_frame[:mpeg_version]
-	@layer = current_frame[:layer]
-	@header[:error_protection] = head[16] == 0 ? true : false
-	@bitrate = current_frame[:bitrate]
-	@samplerate = current_frame[:samplerate]
-	@header[:padding] = current_frame[:padding]
-	@header[:private] = head[8] == 0 ? true : false
-	@channel_mode = CHANNEL_MODE[@channel_num = Mp3Info.bits(head, 7,6)]
-	@header[:mode_extension] = Mp3Info.bits(head, 5,4)
-	@header[:copyright] = (head[3] == 1 ? true : false)
-	@header[:original] = (head[2] == 1 ? true : false)
-	@header[:emphasis] = Mp3Info.bits(head, 1,0)
-	@vbr = false
-	found = true
+        @mpeg_version = current_frame[:mpeg_version]
+        @layer = current_frame[:layer]
+        @header[:error_protection] = head[16] == 0 ? true : false
+        @bitrate = current_frame[:bitrate]
+        @samplerate = current_frame[:samplerate]
+        @header[:padding] = current_frame[:padding]
+        @header[:private] = head[8] == 0 ? true : false
+        @channel_mode = CHANNEL_MODE[@channel_num = Mp3Info.bits(head, 7,6)]
+        @header[:mode_extension] = Mp3Info.bits(head, 5,4)
+        @header[:copyright] = (head[3] == 1 ? true : false)
+        @header[:original] = (head[2] == 1 ? true : false)
+        @header[:emphasis] = Mp3Info.bits(head, 1,0)
+        @vbr = false
+        found = true
         break
       end
 
       raise(Mp3InfoError, "Cannot find good frame") unless found
 
       seek = @mpeg_version == 1 ? 
-	(@channel_num == 3 ? 17 : 32) :       
-	(@channel_num == 3 ?  9 : 17)
+        (@channel_num == 3 ? 17 : 32) :       
+        (@channel_num == 3 ?  9 : 17)
 
       @file.seek(seek, IO::SEEK_CUR)
       
       vbr_head = @file.read(4)
       if vbr_head == "Xing"
-	puts "Xing header (VBR) detected" if $DEBUG
-	flags = @file.get32bits
-	stream_size = frame_count = 0
-	flags[1] == 1 and frame_count = @file.get32bits
-	flags[2] == 1 and stream_size = @file.get32bits 
-	puts "#{frame_count} frames" if $DEBUG
-	raise(Mp3InfoError, "bad VBR header") if frame_count.zero?
-	# currently this just skips the TOC entries if they're found
-	@file.seek(100, IO::SEEK_CUR) if flags[0] == 1
-	#@vbr_quality = @file.get32bits if flags[3] == 1
+        puts "Xing header (VBR) detected" if $DEBUG
+        flags = @file.get32bits
+        stream_size = frame_count = 0
+        flags[1] == 1 and frame_count = @file.get32bits
+        flags[2] == 1 and stream_size = @file.get32bits 
+        puts "#{frame_count} frames" if $DEBUG
+        raise(Mp3InfoError, "bad VBR header") if frame_count.zero?
+        # currently this just skips the TOC entries if they're found
+        @file.seek(100, IO::SEEK_CUR) if flags[0] == 1
+        #@vbr_quality = @file.get32bits if flags[3] == 1
 
         samples_per_frame = SAMPLES_PER_FRAME[@layer][@mpeg_version] 
-	@length = frame_count * samples_per_frame / Float(@samplerate)
+        @length = frame_count * samples_per_frame / Float(@samplerate)
 
-	@bitrate = (((stream_size/frame_count)*@samplerate)/144) / 1024
-	@vbr = true
+        @bitrate = (((stream_size/frame_count)*@samplerate)/144) / 1024
+        @vbr = true
       else
-	# for cbr, calculate duration with the given bitrate
-	stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
-	@length = ((stream_size << 3)/1000.0)/@bitrate
+        # for cbr, calculate duration with the given bitrate
+        stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
+        @length = ((stream_size << 3)/1000.0)/@bitrate
         # read the first 100 frames and decide if the mp3 is vbr and needs full scan
         begin
           bitrate, length = frame_scan(100)
@@ -402,9 +402,9 @@ class Mp3Info
 
       # @tag1 has precedence over @tag
       if @tag1 == @tag1_orig
-	@tag.each do |k, v|
-	  @tag1[k] = v
-	end
+        @tag.each do |k, v|
+          @tag1[k] = v
+        end
       end
 
       # ruby-mp3info can only write v2.3 tags
@@ -451,28 +451,28 @@ class Mp3Info
       raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename)
       tempfile_name = nil
       File.open(@filename, 'rb+') do |file|
-	#if tag2 already exists, seek to end of it
-	if @tag2.parsed?
-	  file.seek(@tag2.io_position)
-	end
+        #if tag2 already exists, seek to end of it
+        if @tag2.parsed?
+          file.seek(@tag2.io_position)
+        end
   #      if @file.read(3) == "ID3"
   #        version_maj, version_min, flags = @file.read(3).unpack("CCB4")
   #        unsync, ext_header, experimental, footer = (0..3).collect { |i| flags[i].chr == '1' }
-  #	tag2_len = @file.get_syncsafe
+  #        tag2_len = @file.get_syncsafe
   #        @file.seek(@file.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
-  #	@file.seek(tag2_len, IO::SEEK_CUR)
+  #        @file.seek(tag2_len, IO::SEEK_CUR)
   #      end
-	tempfile_name = @filename + ".tmp"
-	File.open(tempfile_name, "wb") do |tempfile|
-	  unless @tag2.empty?
-	    tempfile.write(@tag2.to_bin)
-	  end
+        tempfile_name = @filename + ".tmp"
+        File.open(tempfile_name, "wb") do |tempfile|
+          unless @tag2.empty?
+            tempfile.write(@tag2.to_bin)
+          end
 
-	  bufsiz = file.stat.blksize || 4096
-	  while buf = file.read(bufsiz)
-	    tempfile.write(buf)
-	  end
-	end
+          bufsiz = file.stat.blksize || 4096
+          while buf = file.read(bufsiz)
+            tempfile.write(buf)
+          end
+        end
       end
       File.rename(tempfile_name, @filename)
     end
