@@ -160,7 +160,7 @@ class Mp3Info
 
   # Test the presence of an id3v1 tag in file +filename+
   def self.hastag1?(filename)
-    File.open(filename) { |f|
+    File.open(filename,"rb") { |f|
       f.seek(-TAG1_SIZE, File::SEEK_END)
       f.read(3) == "TAG"
     }
@@ -168,7 +168,7 @@ class Mp3Info
 
   # Test the presence of an id3v2 tag in file +filename+
   def self.hastag2?(filename)
-    File.open(filename) { |f|
+    File.open(filename,"rb") { |f|
       f.read(3) == "ID3"
     }
   end
@@ -498,7 +498,7 @@ class Mp3Info
   # counter, or whatever you like ;) +frame+ is a hash with the following keys:
   # :layer, :bitrate, :samplerate, :mpeg_version, :padding and :size (in bytes)
   def each_frame
-    File.open(@filename, 'r') do |file|
+    File.open(@filename, 'rb') do |file|
       file.seek(@first_frame_pos, File::SEEK_SET)
       loop do
         head = file.read(4).unpack("N").first
