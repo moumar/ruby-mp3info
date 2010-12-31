@@ -23,7 +23,7 @@ class Mp3Info
       alias getbyte []
     else
       def getbyte(i)
-        self[i].ord
+        self[i].ord unless self[i].nil?
       end
     end
   end

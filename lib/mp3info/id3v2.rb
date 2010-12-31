@@ -344,7 +344,7 @@ class ID3v2 < DelegateClass(Hash)
 	  end
 	end
         # remove padding zeros for textual tags
-        out.sub!(/\0*$/, '')
+        out.sub!(/\0*$/, '') unless out.nil?
         return out
       else
         return raw_value
