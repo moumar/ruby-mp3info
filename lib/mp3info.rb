@@ -190,15 +190,16 @@ class Mp3Info
 
   # Instantiate Mp3Info object with name +filename+.
   # options hash is used for ID3v2#new. 
-  # You can specify :parse_tags => false to disable the processing 
+  # Specify :parse_tags => false to disable the processing
   # of the tags (read and write).
+  # Specify :parse_mp3 => false to disable processing of the mp3
   def initialize(filename, options = {})
     warn("#{self.class}::new() does not take block; use #{self.class}::open() instead") if block_given?
     @filename = filename
     @tag_parsing_enabled = options.delete(:parse_tags)
-    if @tag_parsing_enabled == nil
-      @tag_parsing_enabled = true
-    end
+    @tag_parsing_enabled = true if @tag_parsing_enabled.nil?
+    @mp3_parsing_enabled = options.delete(:parse_mp3)
+    @mp3_parsing_enabled = true if @mp3_parsing_enabled.nil?
     @id3v2_options = options
     reload
   end
@@ -248,6 +249,7 @@ class Mp3Info
         @tag_orig = @tag.dup
       end
 
+      return unless @mp3_parsing_enabled
 
       ### extracts MPEG info from MPEG header and stores it in the hash @mpeg
       ###  head (fixnum) = valid 4 byte MPEG header
