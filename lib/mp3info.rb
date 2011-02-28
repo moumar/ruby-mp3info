@@ -196,10 +196,9 @@ class Mp3Info
   def initialize(filename, options = {})
     warn("#{self.class}::new() does not take block; use #{self.class}::open() instead") if block_given?
     @filename = filename
+    options = {:parse_mp3 => true, :parse_tags => true}.update(options)
     @tag_parsing_enabled = options.delete(:parse_tags)
-    @tag_parsing_enabled = true if @tag_parsing_enabled.nil?
     @mp3_parsing_enabled = options.delete(:parse_mp3)
-    @mp3_parsing_enabled = true if @mp3_parsing_enabled.nil?
     @id3v2_options = options
     reload
   end
@@ -249,75 +248,10 @@ class Mp3Info
         @tag_orig = @tag.dup
       end
 
-      return unless @mp3_parsing_enabled
-
-      ### extracts MPEG info from MPEG header and stores it in the hash @mpeg
-      ###  head (fixnum) = valid 4 byte MPEG header
-      
-      found = false
-
-      head = nil
-      5.times do
-        head = find_next_frame() 
-        @first_frame_pos = @file.pos - 4
-        current_frame = Mp3Info.get_frames_infos(head)
-        @mpeg_version = current_frame[:mpeg_version]
-        @layer = current_frame[:layer]
-        @header[:error_protection] = head[16] == 0 ? true : false
-        @bitrate = current_frame[:bitrate]
-        @samplerate = current_frame[:samplerate]
-        @header[:padding] = current_frame[:padding]
-        @header[:private] = head[8] == 0 ? true : false
-        @channel_mode = CHANNEL_MODE[@channel_num = Mp3Info.bits(head, 7,6)]
-        @header[:mode_extension] = Mp3Info.bits(head, 5,4)
-        @header[:copyright] = (head[3] == 1 ? true : false)
-        @header[:original] = (head[2] == 1 ? true : false)
-        @header[:emphasis] = Mp3Info.bits(head, 1,0)
-        @vbr = false
-        found = true
-        break
+      if @mp3_parsing_enabled
+        parse_mp3
       end
 
-      raise(Mp3InfoError, "Cannot find good frame") unless found
-
-      seek = @mpeg_version == 1 ? 
-        (@channel_num == 3 ? 17 : 32) :       
-        (@channel_num == 3 ?  9 : 17)
-
-      @file.seek(seek, IO::SEEK_CUR)
-      
-      vbr_head = @file.read(4)
-      if vbr_head == "Xing"
-        puts "Xing header (VBR) detected" if $DEBUG
-        flags = @file.get32bits
-        stream_size = frame_count = 0
-        flags[1] == 1 and frame_count = @file.get32bits
-        flags[2] == 1 and stream_size = @file.get32bits 
-        puts "#{frame_count} frames" if $DEBUG
-        raise(Mp3InfoError, "bad VBR header") if frame_count.zero?
-        # currently this just skips the TOC entries if they're found
-        @file.seek(100, IO::SEEK_CUR) if flags[0] == 1
-        #@vbr_quality = @file.get32bits if flags[3] == 1
-
-        samples_per_frame = SAMPLES_PER_FRAME[@layer][@mpeg_version] 
-        @length = frame_count * samples_per_frame / Float(@samplerate)
-
-        @bitrate = (((stream_size/frame_count)*@samplerate)/144) / 1024
-        @vbr = true
-      else
-        # for cbr, calculate duration with the given bitrate
-        stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
-        @length = ((stream_size << 3)/1000.0)/@bitrate
-        # read the first 100 frames and decide if the mp3 is vbr and needs full scan
-        begin
-          bitrate, length = frame_scan(100)
-          if @bitrate != bitrate
-            @vbr = true
-            @bitrate, @length = frame_scan
-          end
-        rescue Mp3InfoInternalError
-        end
-      end
     ensure
       @file.close
     end
@@ -640,6 +574,75 @@ private
     [average_bitrate, length]
   end
 
+  def parse_mp3
+    ### extracts MPEG info from MPEG header and stores it in the hash @mpeg
+    ###  head (fixnum) = valid 4 byte MPEG header
+    
+    found = false
+
+    head = nil
+    5.times do
+      head = find_next_frame() 
+      @first_frame_pos = @file.pos - 4
+      current_frame = Mp3Info.get_frames_infos(head)
+      @mpeg_version = current_frame[:mpeg_version]
+      @layer = current_frame[:layer]
+      @header[:error_protection] = head[16] == 0 ? true : false
+      @bitrate = current_frame[:bitrate]
+      @samplerate = current_frame[:samplerate]
+      @header[:padding] = current_frame[:padding]
+      @header[:private] = head[8] == 0 ? true : false
+      @channel_mode = CHANNEL_MODE[@channel_num = Mp3Info.bits(head, 7,6)]
+      @header[:mode_extension] = Mp3Info.bits(head, 5,4)
+      @header[:copyright] = (head[3] == 1 ? true : false)
+      @header[:original] = (head[2] == 1 ? true : false)
+      @header[:emphasis] = Mp3Info.bits(head, 1,0)
+      @vbr = false
+      found = true
+      break
+    end
+
+    raise(Mp3InfoError, "Cannot find good frame") unless found
+
+    seek = @mpeg_version == 1 ? 
+      (@channel_num == 3 ? 17 : 32) :       
+      (@channel_num == 3 ?  9 : 17)
+
+    @file.seek(seek, IO::SEEK_CUR)
+    
+    vbr_head = @file.read(4)
+    if vbr_head == "Xing"
+      puts "Xing header (VBR) detected" if $DEBUG
+      flags = @file.get32bits
+      stream_size = frame_count = 0
+      flags[1] == 1 and frame_count = @file.get32bits
+      flags[2] == 1 and stream_size = @file.get32bits 
+      puts "#{frame_count} frames" if $DEBUG
+      raise(Mp3InfoError, "bad VBR header") if frame_count.zero?
+      # currently this just skips the TOC entries if they're found
+      @file.seek(100, IO::SEEK_CUR) if flags[0] == 1
+      #@vbr_quality = @file.get32bits if flags[3] == 1
+
+      samples_per_frame = SAMPLES_PER_FRAME[@layer][@mpeg_version] 
+      @length = frame_count * samples_per_frame / Float(@samplerate)
+
+      @bitrate = (((stream_size/frame_count)*@samplerate)/144) / 1024
+      @vbr = true
+    else
+      # for cbr, calculate duration with the given bitrate
+      stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
+      @length = ((stream_size << 3)/1000.0)/@bitrate
+      # read the first 100 frames and decide if the mp3 is vbr and needs full scan
+      begin
+        bitrate, length = frame_scan(100)
+        if @bitrate != bitrate
+          @vbr = true
+          @bitrate, @length = frame_scan
+        end
+      rescue Mp3InfoInternalError
+      end
+    end
+  end
 
   ### returns the selected bit range (b, a) as a number
   ### NOTE: b > a  if not, returns 0
