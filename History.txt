@@ -1,5 +1,10 @@
 === 0.6.14 / 2011-06-17
 
+* Added a check for nil that was seen causing problems when processing files. (thanks to Carl Hall)
+* Fixed reading on win32, requires binary flag. (thanks to Jonas Tingeborn)
+* Fixed white spaces. Replaced tabs with spaces to make the source readable on for users other than the original author. (thanks to Jonas Tingeborn)
+* Add :parse_mp3 flag to new/open. (thanks to Dave Lee)
+* Add benchmark for parsing performance. (thanks to Dave Lee)
 * fixed ID3v2#io_position computing, so Mp3Info#audio_content() is correct now
 
 === 0.6.13 / 2009-05-26
