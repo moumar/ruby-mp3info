@@ -228,7 +228,6 @@ class ID3v2 < DelegateClass(Hash)
     raise(ID3v2Error, "can't find version_maj ('#{version_maj}')") unless [2, 3, 4].include?(version_maj)
     @version_maj, @version_min = version_maj, version_min
     @tag_length = @io.get_syncsafe
-    @io_position = original_pos + @tag_length
     
     @parsed = true
     begin
@@ -243,6 +242,8 @@ class ID3v2 < DelegateClass(Hash)
     rescue ID3v2Error => e
       warn("warning: id3v2 tag not fully parsed: #{e.message}")
     end
+    @io_position = @io.pos
+    @tag_length = @io_position - original_pos
 
     @hash_orig = @hash.dup
     #no more reading

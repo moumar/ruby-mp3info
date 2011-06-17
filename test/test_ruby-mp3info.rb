@@ -441,6 +441,16 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
   end
 
+  def test_audio_content_problematic
+    File.open(TEMP_FILE, "w") { |f| f.write(FIXTURES["audio_content_fixture"]) }
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      expected_pos = 150
+      audio_content_pos, audio_content_size = mp3.audio_content
+      assert_equal expected_pos, audio_content_pos
+      assert_equal File.size(TEMP_FILE) - expected_pos, audio_content_size
+    end
+  end
+
   def test_headerless_vbr_file
     mp3_length = 3
     # this will generate a 15 sec mp3 file (44100hz*16bit*2channels) = 60/4 = 15
