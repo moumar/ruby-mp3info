@@ -204,7 +204,7 @@ class Mp3Info
   end
   
   def get_size
-    if @file.is_a? String
+    if @file.is_a? File
       return @file.stat.size
     elsif @file.is_a? StringIO
       return @file.size
