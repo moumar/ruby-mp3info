@@ -202,14 +202,25 @@ class Mp3Info
     @id3v2_options = options
     reload
   end
+  
+  def get_size
+    if @file.is_a? String
+      return @file.stat.size
+    elsif @file.is_a? StringIO
+      return @file.size
+    end
+  end
 
   # reload (or load for the first time) the file from disk
   def reload
-    raise(Mp3InfoError, "empty file") unless File.size?(@filename)
-
-    @header = {}
+    #raise(Mp3InfoError, "empty file") unless File.size?(@filename)
     
-    @file = File.new(filename, "rb")
+    @header = {}
+    if filename.is_a? String
+      @file = File.new(filename, "rb")
+    elsif filename.is_a? StringIO
+      @file = filename
+    end
     @file.extend(Mp3FileMethods)
     @tag1 = @tag = @tag1_orig = @tag_orig = {}
     @tag1.extend(HashKeys)
@@ -253,7 +264,9 @@ class Mp3Info
       end
 
     ensure
-      @file.close
+      if @file.is_a? File
+        @file.close
+      end
     end
   end
 
@@ -357,7 +370,7 @@ class Mp3Info
       @tag1_orig = @tag1.dup
       File.open(@filename, 'rb+') do |file|
         if @tag1_orig.empty?
-          newsize = file.stat.size - TAG1_SIZE
+          newsize = get_size - TAG1_SIZE
           file.truncate(newsize)
         else
           file.seek(-TAG1_SIZE, File::SEEK_END)
@@ -483,7 +496,9 @@ private
 
   ### parses the id3 tags of the currently open @file
   def parse_tags
-    return if @file.stat.size < TAG1_SIZE  # file is too small
+    return if get_size < TAG1_SIZE  # file is too small
+    
+    #return if @file.stat.size < TAG1_SIZE  # file is too small
     @tag1_parsed = false
     @file.seek(0)
     f3 = @file.read(3)
@@ -540,7 +555,9 @@ private
     # It should be at the end of the id3v2 tag or the zero padding if there
     #   is a id3v2 tag.
     #dummyproof = @file.stat.size - @file.pos => WAS TOO MUCH
-    dummyproof = [ @file.stat.size - @file.pos, 2000000 ].min
+
+    dummyproof = [ get_size - @file.pos, 2000000 ].min
+    #dummyproof = [ @file.stat.size - @file.pos, 2000000 ].min
     dummyproof.times do |i|
       if @file.getbyte == 0xff
         data = @file.read(3)
@@ -630,7 +647,8 @@ private
       @vbr = true
     else
       # for cbr, calculate duration with the given bitrate
-      stream_size = @file.stat.size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
+      
+      stream_size = get_size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
       @length = ((stream_size << 3)/1000.0)/@bitrate
       # read the first 100 frames and decide if the mp3 is vbr and needs full scan
       begin
