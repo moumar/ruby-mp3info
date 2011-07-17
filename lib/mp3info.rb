@@ -213,7 +213,7 @@ class Mp3Info
 
   # reload (or load for the first time) the file from disk
   def reload
-    if not File.size?(@filename) or not filename.is_a? StringIO
+    if not filename.is_a? StringIO and not File.size?(@filename)
       raise(Mp3InfoError, "empty file")
     end
     
