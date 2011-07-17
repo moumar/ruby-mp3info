@@ -213,7 +213,9 @@ class Mp3Info
 
   # reload (or load for the first time) the file from disk
   def reload
-    #raise(Mp3InfoError, "empty file") unless File.size?(@filename)
+    if not File.size?(@filename) or not filename.is_a? StringIO
+      raise(Mp3InfoError, "empty file")
+    end
     
     @header = {}
     if filename.is_a? String
@@ -497,8 +499,7 @@ private
   ### parses the id3 tags of the currently open @file
   def parse_tags
     return if get_size < TAG1_SIZE  # file is too small
-    
-    #return if @file.stat.size < TAG1_SIZE  # file is too small
+
     @tag1_parsed = false
     @file.seek(0)
     f3 = @file.read(3)
@@ -557,7 +558,6 @@ private
     #dummyproof = @file.stat.size - @file.pos => WAS TOO MUCH
 
     dummyproof = [ get_size - @file.pos, 2000000 ].min
-    #dummyproof = [ @file.stat.size - @file.pos, 2000000 ].min
     dummyproof.times do |i|
       if @file.getbyte == 0xff
         data = @file.read(3)
