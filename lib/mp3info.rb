@@ -17,7 +17,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.6.14"
+  VERSION = "0.6.15"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -155,22 +155,45 @@ class Mp3Info
   # "close" method.
   attr_accessor(:tag2)
 
-  # the original filename
+  # the original filename unless used with a StringIO
   attr_reader(:filename)
 
-  # Test the presence of an id3v1 tag in file +filename+
-  def self.hastag1?(filename)
-    File.open(filename,"rb") { |f|
-      f.seek(-TAG1_SIZE, File::SEEK_END)
-      f.read(3) == "TAG"
-    }
+  # Test the presence of an id3v1 tag in file or StringIO +filename_or_io+
+  def self.hastag1?(filename_or_io)
+    if filename_or_io.is_a?(StringIO)
+      io = filename_or_io
+      io.rewind
+    else
+      io = File.new(filename_or_io, "rb")
+    end
+
+    hastag1 = false
+    begin
+      io.seek(-TAG1_SIZE, File::SEEK_END)
+      hastag1 = io.read(3) == "TAG"
+    ensure
+      io.close if io.is_a?(File)
+    end
+    hastag1
   end
 
-  # Test the presence of an id3v2 tag in file +filename+
-  def self.hastag2?(filename)
-    File.open(filename,"rb") { |f|
-      f.read(3) == "ID3"
-    }
+  # Test the presence of an id3v2 tag in file or StringIO +filename_or_io+
+  def self.hastag2?(filename_or_io)
+    if filename_or_io.is_a?(StringIO)
+      io = filename_or_io
+      io.rewind
+    else
+      io = File.new(filename_or_io,"rb")
+    end
+
+    hastag2 = false
+
+    begin
+      hastag2 = io.read(3) == "ID3"
+    ensure
+      io.close if io.is_a?(File)
+    end
+    hastag2
   end
 
   # Remove id3v1 tag from +filename+
@@ -193,9 +216,9 @@ class Mp3Info
   # Specify :parse_tags => false to disable the processing
   # of the tags (read and write).
   # Specify :parse_mp3 => false to disable processing of the mp3
-  def initialize(filename, options = {})
+  def initialize(filename_or_io, options = {})
     warn("#{self.class}::new() does not take block; use #{self.class}::open() instead") if block_given?
-    @filename = filename
+    @filename_or_io = filename_or_io
     options = {:parse_mp3 => true, :parse_tags => true}.update(options)
     @tag_parsing_enabled = options.delete(:parse_tags)
     @mp3_parsing_enabled = options.delete(:parse_mp3)
@@ -203,27 +226,28 @@ class Mp3Info
     reload
   end
   
-  def get_size
-    if @file.is_a? File
-      return @file.stat.size
-    elsif @file.is_a? StringIO
-      return @file.size
-    end
-  end
-
   # reload (or load for the first time) the file from disk
   def reload
-    if not filename.is_a? StringIO and not File.size?(@filename)
-      raise(Mp3InfoError, "empty file")
+    @header = {}
+
+    if @filename_or_io.is_a?(String)
+      @io_is_a_file = true
+      @io = File.new(@filename_or_io, "rb")
+      @io_size = @io.stat.size
+      @filename = @filename_or_io
+    elsif @filename_or_io.is_a?(StringIO)
+      @io_is_a_file = false
+      @io = @filename_or_io
+      @io_size = @io.size
+      @filename = nil
+    end
+
+    if @io_size == 0
+      raise(Mp3InfoError, "empty file or IO")
     end
     
-    @header = {}
-    if filename.is_a? String
-      @file = File.new(filename, "rb")
-    elsif filename.is_a? StringIO
-      @file = filename
-    end
-    @file.extend(Mp3FileMethods)
+
+    @io.extend(Mp3FileMethods)
     @tag1 = @tag = @tag1_orig = @tag_orig = {}
     @tag1.extend(HashKeys)
     @tag2 = ID3v2.new(@id3v2_options)
@@ -266,8 +290,8 @@ class Mp3Info
       end
 
     ensure
-      if @file.is_a? File
-        @file.close
+      if @io_is_a_file
+        @io.close
       end
     end
   end
@@ -317,6 +341,7 @@ class Mp3Info
 
   # write to another filename at close()
   def rename(new_filename)
+    raise(Mp3InfoError, "cannot rename an IO") unless @io_is_a_file
     @filename = new_filename
   end
 
@@ -326,7 +351,7 @@ class Mp3Info
   # [position_in_the_file, length_of_the_data]
   def audio_content
     pos = 0
-    length = File.size(@filename)
+    length = @io_size
     if hastag1?
       length -= TAG1_SIZE
     end
@@ -343,8 +368,10 @@ class Mp3Info
   end
 
   # Flush pending modifications to tags and close the file
+  # not used when source IO is a StringIO
   def close
     puts "close" if $DEBUG
+    return unless @io_is_a_file
     if !@tag_parsing_enabled
       return 
     end
@@ -367,12 +394,12 @@ class Mp3Info
 
     if @tag1 != @tag1_orig
       puts "@tag1 has changed" if $DEBUG
-      raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename)
+      raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename_or_io)
       #@tag1_orig.update(@tag1)
       @tag1_orig = @tag1.dup
-      File.open(@filename, 'rb+') do |file|
+      File.open(@filename_or_io, 'rb+') do |file|
         if @tag1_orig.empty?
-          newsize = get_size - TAG1_SIZE
+          newsize = @io_size - TAG1_SIZE
           file.truncate(newsize)
         else
           file.seek(-TAG1_SIZE, File::SEEK_END)
@@ -399,21 +426,21 @@ class Mp3Info
 
     if @tag2.changed?
       puts "@tag2 has changed" if $DEBUG
-      raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename)
+      raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename_or_io)
       tempfile_name = nil
-      File.open(@filename, 'rb+') do |file|
+      File.open(@filename_or_io, 'rb+') do |file|
         #if tag2 already exists, seek to end of it
         if @tag2.parsed?
           file.seek(@tag2.io_position)
         end
-  #      if @file.read(3) == "ID3"
-  #        version_maj, version_min, flags = @file.read(3).unpack("CCB4")
+  #      if @io.read(3) == "ID3"
+  #        version_maj, version_min, flags = @io.read(3).unpack("CCB4")
   #        unsync, ext_header, experimental, footer = (0..3).collect { |i| flags[i].chr == '1' }
-  #        tag2_len = @file.get_syncsafe
-  #        @file.seek(@file.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
-  #        @file.seek(tag2_len, IO::SEEK_CUR)
+  #        tag2_len = @io.get_syncsafe
+  #        @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
+  #        @io.seek(tag2_len, IO::SEEK_CUR)
   #      end
-        tempfile_name = @filename + ".tmp"
+        tempfile_name = @filename_or_io + ".tmp"
         File.open(tempfile_name, "wb") do |tempfile|
           unless @tag2.empty?
             tempfile.write(@tag2.to_bin)
@@ -425,13 +452,14 @@ class Mp3Info
           end
         end
       end
-      File.rename(tempfile_name, @filename)
+      File.rename(tempfile_name, @filename_or_io)
     end
   end
 
   # close and reopen the file, i.e. commit changes to disk and 
-  # reload it
+  # reload it (only works with "true" files, not StringIO ones)
   def flush
+    return unless @io_is_a_file
     close
     reload
   end
@@ -449,16 +477,14 @@ class Mp3Info
   # counter, or whatever you like ;) +frame+ is a hash with the following keys:
   # :layer, :bitrate, :samplerate, :mpeg_version, :padding and :size (in bytes)
   def each_frame
-    File.open(@filename, 'rb') do |file|
-      file.seek(@first_frame_pos, File::SEEK_SET)
-      loop do
-        head = file.read(4).unpack("N").first
-        frame = Mp3Info.get_frames_infos(head)
-        file.seek(frame[:size] -4, File::SEEK_CUR)
-        yield frame
-        #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @file.pos #{@file.pos}"
-        break if file.eof?
-      end
+    @io.seek(@first_frame_pos, File::SEEK_SET)
+    loop do
+      head = @io.read(4).unpack("N").first
+      frame = Mp3Info.get_frames_infos(head)
+      @io.seek(frame[:size] -4, File::SEEK_CUR)
+      yield frame
+      #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @io.pos #{@io.pos}"
+      break if @io.eof?
     end
   end
 
@@ -496,50 +522,50 @@ private
       :size => size }
   end
 
-  ### parses the id3 tags of the currently open @file
+  ### parses the id3 tags of the currently open @io
   def parse_tags
-    return if get_size < TAG1_SIZE  # file is too small
+    return if @io_size < TAG1_SIZE  # file is too small
 
     @tag1_parsed = false
-    @file.seek(0)
-    f3 = @file.read(3)
+    @io.seek(0)
+    f3 = @io.read(3)
     # v1 tag at beginning
     if f3 == "TAG"  
       gettag1 
       @tag1_parsed = true
     end
 
-    @tag2.from_io(@file) if f3 == "ID3"  # v2 tag at beginning
+    @tag2.from_io(@io) if f3 == "ID3"  # v2 tag at beginning
       
     unless @tag1_parsed         # v1 tag at end
       # this preserves the file pos if tag2 found, since gettag2 leaves
       # the file at the best guess as to the first MPEG frame
       pos = (@tag2.io_position || 0)
       # seek to where id3v1 tag should be
-      @file.seek(-TAG1_SIZE, IO::SEEK_END) 
-      if @file.read(3) == "TAG"
+      @io.seek(-TAG1_SIZE, IO::SEEK_END) 
+      if @io.read(3) == "TAG"
         gettag1
       end
-      @file.seek(pos)
+      @io.seek(pos)
     end
   end
   
-  ### gets id3v1 tag information from @file
-  ### assumes @file is pointing to char after "TAG" id
+  ### gets id3v1 tag information from @io
+  ### assumes @io is pointing to char after "TAG" id
   def gettag1
     @tag1_parsed = true
-    @tag1["title"] = @file.read(30).unpack("A*").first
-    @tag1["artist"] = @file.read(30).unpack("A*").first
-    @tag1["album"] = @file.read(30).unpack("A*").first
-    year_t = @file.read(4).to_i
+    @tag1["title"] = @io.read(30).unpack("A*").first
+    @tag1["artist"] = @io.read(30).unpack("A*").first
+    @tag1["album"] = @io.read(30).unpack("A*").first
+    year_t = @io.read(4).to_i
     @tag1["year"] = year_t unless year_t == 0
-    comments = @file.read(30)
+    comments = @io.read(30)
     if comments.getbyte(-2) == 0
       @tag1["tracknum"] = comments.getbyte(-1).to_i
       comments.chop! #remove the last char
     end
     @tag1["comments"] = comments.unpack("A*").first
-    @tag1["genre"] = @file.getbyte
+    @tag1["genre"] = @io.getbyte
     @tag1["genre_s"] = GENRES[@tag1["genre"]] || ""
 
     # clear empty tags
@@ -548,30 +574,30 @@ private
     @tag1.delete("tracknum") if @tag1["tracknum"] == 0
   end
 
-  ### reads through @file from current pos until it finds a valid MPEG header
+  ### reads through @io from current pos until it finds a valid MPEG header
   ### returns the MPEG header as FixNum
   def find_next_frame
-    # @file will now be sitting at the best guess for where the MPEG frame is.
+    # @io will now be sitting at the best guess for where the MPEG frame is.
     # It should be at byte 0 when there's no id3v2 tag.
     # It should be at the end of the id3v2 tag or the zero padding if there
     #   is a id3v2 tag.
-    #dummyproof = @file.stat.size - @file.pos => WAS TOO MUCH
+    #dummyproof = @io.stat.size - @io.pos => WAS TOO MUCH
 
-    dummyproof = [ get_size - @file.pos, 2000000 ].min
+    dummyproof = [ @io_size - @io.pos, 2000000 ].min
     dummyproof.times do |i|
-      if @file.getbyte == 0xff
-        data = @file.read(3)
-        raise(Mp3InfoError, "end of file reached") if @file.eof?
+      if @io.getbyte == 0xff
+        data = @io.read(3)
+        raise(Mp3InfoError, "end of file reached") if @io.eof?
         head = 0xff000000 + (data.getbyte(0) << 16) + (data.getbyte(1) << 8) + data.getbyte(2)
         begin
           Mp3Info.get_frames_infos(head)
           return head
         rescue Mp3InfoInternalError
-          @file.seek(-3, IO::SEEK_CUR)
+          @io.seek(-3, IO::SEEK_CUR)
         end
       end
     end
-    if @file.eof?
+    if @io.eof?
       raise Mp3InfoError, "cannot find a valid frame: got EOF"
     else
       raise Mp3InfoError, "cannot find a valid frame after reading #{dummyproof} bytes"
@@ -600,7 +626,7 @@ private
     head = nil
     5.times do
       head = find_next_frame() 
-      @first_frame_pos = @file.pos - 4
+      @first_frame_pos = @io.pos - 4
       current_frame = Mp3Info.get_frames_infos(head)
       @mpeg_version = current_frame[:mpeg_version]
       @layer = current_frame[:layer]
@@ -625,20 +651,20 @@ private
       (@channel_num == 3 ? 17 : 32) :       
       (@channel_num == 3 ?  9 : 17)
 
-    @file.seek(seek, IO::SEEK_CUR)
+    @io.seek(seek, IO::SEEK_CUR)
     
-    vbr_head = @file.read(4)
+    vbr_head = @io.read(4)
     if vbr_head == "Xing"
       puts "Xing header (VBR) detected" if $DEBUG
-      flags = @file.get32bits
+      flags = @io.get32bits
       stream_size = frame_count = 0
-      flags[1] == 1 and frame_count = @file.get32bits
-      flags[2] == 1 and stream_size = @file.get32bits 
+      flags[1] == 1 and frame_count = @io.get32bits
+      flags[2] == 1 and stream_size = @io.get32bits 
       puts "#{frame_count} frames" if $DEBUG
       raise(Mp3InfoError, "bad VBR header") if frame_count.zero?
       # currently this just skips the TOC entries if they're found
-      @file.seek(100, IO::SEEK_CUR) if flags[0] == 1
-      #@vbr_quality = @file.get32bits if flags[3] == 1
+      @io.seek(100, IO::SEEK_CUR) if flags[0] == 1
+      #@vbr_quality = @io.get32bits if flags[3] == 1
 
       samples_per_frame = SAMPLES_PER_FRAME[@layer][@mpeg_version] 
       @length = frame_count * samples_per_frame / Float(@samplerate)
@@ -648,7 +674,7 @@ private
     else
       # for cbr, calculate duration with the given bitrate
       
-      stream_size = get_size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
+      stream_size = @io_size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
       @length = ((stream_size << 3)/1000.0)/@bitrate
       # read the first 100 frames and decide if the mp3 is vbr and needs full scan
       begin

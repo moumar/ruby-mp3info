@@ -1,3 +1,7 @@
+=== 0.6.15 / 2011-07-18
+
+* support for StringIO as input (thanks to Edd Parris)
+
 === 0.6.14 / 2011-06-17
 
 * Added a check for nil that was seen causing problems when processing files. (thanks to Carl Hall)

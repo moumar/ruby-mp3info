@@ -10,6 +10,8 @@ require "tempfile"
 require "zlib"
 require "yaml"
 
+system("which id3v2 > /dev/null") || raise("id3v2 not found")
+
 class Mp3InfoTest < Test::Unit::TestCase
 
   TEMP_FILE = File.join(File.dirname(__FILE__), "test_mp3info.mp3")
@@ -86,21 +88,8 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
   
   def test_detected_info
-    Mp3Info.open(TEMP_FILE) do |info|
-      assert_equal(1, info.mpeg_version)
-      assert_equal(3, info.layer)
-      assert_equal(false, info.vbr)
-      assert_equal(128, info.bitrate)
-      assert_equal("JStereo", info.channel_mode)
-      assert_equal(44100, info.samplerate)
-      assert_equal(0.1305625, info.length)
-      assert_equal({:original => true, 
-                    :error_protection => false, 
-                    :padding => false, 
-                    :emphasis => 0, 
-                    :private => true, 
-                    :mode_extension => 2, 
-                    :copyright => false}, info.header)
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_mp3_info_are_ok(mp3)
     end
   end
   
@@ -167,11 +156,21 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_removetag2
-    w = write_temp_file({"TIT2" => "sdfqdsf"})
+    w = write_tag2_to_temp_file({"TIT2" => "sdfqdsf"})
 
     assert( Mp3Info.hastag2?(TEMP_FILE) )
     Mp3Info.removetag2(TEMP_FILE)
     assert( ! Mp3Info.hastag2?(TEMP_FILE) )
+  end
+
+  def test_hastags
+    Mp3Info.open(TEMP_FILE) do |info| 
+      info.tag1 = @tag
+    end
+    assert(Mp3Info.hastag1?(TEMP_FILE))
+
+    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
+    assert(Mp3Info.hastag2?(TEMP_FILE))
   end
 
   def test_universal_tag
@@ -200,7 +199,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_id3v2_version
-    written_tag = write_temp_file(DUMMY_TAG2)
+    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
     assert_equal( "2.#{ID3v2::WRITE_VERSION}.0", written_tag.version )
   end
 
@@ -215,7 +214,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_id3v2_basic
-    w = write_temp_file(DUMMY_TAG2)
+    w = write_tag2_to_temp_file(DUMMY_TAG2)
     assert_equal(DUMMY_TAG2, w)
     id3v2_prog_test(DUMMY_TAG2, w)
   end
@@ -254,13 +253,13 @@ class Mp3InfoTest < Test::Unit::TestCase
       tag[k] = random_string(50)
     end
 
-    got_tag = write_temp_file(tag)
+    got_tag = write_tag2_to_temp_file(tag)
     assert_equal(tag, got_tag)
   end
 
   def test_id3v2_bigtag
     tag = {"APIC" => random_string(1024) }
-    assert_equal(tag, write_temp_file(tag))
+    assert_equal(tag, write_tag2_to_temp_file(tag))
   end
 
   def test_infinite_loop_on_seek_to_v2_end
@@ -270,7 +269,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   def test_leading_char_gets_chopped
     tag2 = DUMMY_TAG2.dup
     tag2["WOAR"] = "http://foo.bar"
-    w = write_temp_file(tag2)
+    w = write_tag2_to_temp_file(tag2)
     assert_equal("http://foo.bar", w["WOAR"])
 
     system(%(id3v2 --WOAR "http://foo.bar" "#{TEMP_FILE}"))
@@ -465,7 +464,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_parse_tags_disabled
-    write_temp_file(DUMMY_TAG2)
+    write_tag2_to_temp_file(DUMMY_TAG2)
     Mp3Info.open(TEMP_FILE, :parse_tags => false) do |mp3|
       assert mp3.tag.empty?
       assert mp3.tag1.empty?
@@ -480,6 +479,34 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
   end
 
+  def test_string_io
+    io = load_string_io
+    Mp3Info.open(io) do |mp3|
+      assert_mp3_info_are_ok(mp3)
+    end
+  end
+
+  def test_trying_to_rename_a_stringio_should_raise_an_error
+    io = load_string_io
+    Mp3Info.open(io) do |mp3|
+      assert_raises(Mp3InfoError) do
+        mp3.rename("whatever_filename_is_error_should_be_raised.mp3")
+      end
+    end
+  end
+
+  def test_hastag_class_methods_with_a_stringio
+    Mp3Info.open(TEMP_FILE) do |info| 
+      info.tag1 = @tag
+    end
+    io = load_string_io
+    assert(Mp3Info.hastag1?(io))
+
+    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
+    io = load_string_io
+    assert(Mp3Info.hastag2?(io))
+  end
+
   def compute_audio_content_mp3_digest(mp3)
     pos, size = mp3.audio_content
     data = File.open(mp3.filename) do |f|
@@ -489,7 +516,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     Digest::MD5.new.update(data).hexdigest
   end
 
-  def write_temp_file(tag)
+  def write_tag2_to_temp_file(tag)
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.update(tag)
     end
@@ -501,6 +528,31 @@ class Mp3InfoTest < Test::Unit::TestCase
     out = ""
     size.times { out << rand(256).chr }
     out
+  end
+
+  def assert_mp3_info_are_ok(mp3)
+    assert_equal(1, mp3.mpeg_version)
+    assert_equal(3, mp3.layer)
+    assert_equal(false, mp3.vbr)
+    assert_equal(128, mp3.bitrate)
+    assert_equal("JStereo", mp3.channel_mode)
+    assert_equal(44100, mp3.samplerate)
+    assert_equal(0.1305625, mp3.length)
+    assert_equal({:original => true, 
+                  :error_protection => false, 
+                  :padding => false, 
+                  :emphasis => 0, 
+                  :private => true, 
+                  :mode_extension => 2, 
+                  :copyright => false}, mp3.header)
+  end
+
+  def load_string_io(filename = TEMP_FILE)
+    io = StringIO.new
+    data = File.read(filename)
+    io.write(data)
+    io.rewind
+    io
   end
 
 =begin
