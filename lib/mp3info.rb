@@ -17,7 +17,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.6.15"
+  VERSION = "0.6.16"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {

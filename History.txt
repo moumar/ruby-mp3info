@@ -1,3 +1,7 @@
+=== 0.6.16 / 2011-11-10
+
+* fixed type error when inspecting mp3info (thanks to Jacob Lichner)
+
 === 0.6.15 / 2011-07-18
 
 * support for StringIO as input (thanks to Edd Parris)
