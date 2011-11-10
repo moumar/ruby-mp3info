@@ -1,9 +1,6 @@
-ruby-mp3info
+= ruby-mp3info
 
-by Guillaume Pierronnet
-* http://ruby-mp3info.rubyforge.org/
-* http://rubyforge.org/projects/ruby-mp3info/
-* https://github.com/moumar/ruby-mp3info
+* http://github.com/moumar/ruby-mp3info
 
 == DESCRIPTION:
 
@@ -19,8 +16,6 @@ mp3 files.
 * only 2.3 version is supported for writings id3v2 tags
 
 == SYNOPSIS:
-  
-a good exercise is to read the test.rb to understand how the library works deeper
 
   require "mp3info"
   # read and display infos & tags
@@ -61,13 +56,22 @@ a good exercise is to read the test.rb to understand how the library works deepe
 
 == INSTALL:
 
- $ ruby install.rb config
- $ ruby install.rb setup
- # ruby install.rb install
+$ ruby install.rb config
+$ ruby install.rb setup
+# ruby install.rb install
 
-or
+ or
 
- # gem install ruby-mp3info
+* gem install ruby-mp3info
+
+== DEVELOPERS:
+
+After checking out the source, run:
+
+  $ rake newb
+
+This task will install any missing dependencies, run the tests/specs,
+and generate the RDoc.
 
 == LICENSE:
 
