@@ -221,7 +221,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   #test the tag with the "id3v2" program
   def id3v2_prog_test(tag, written_tag)
-    return if ENV["TRAVIS"] == "true"
+    return if ENV["TRAVIS"]
     return if RUBY_PLATFORM =~ /win32/
     return if `which id3v2`.empty?
     start = false
