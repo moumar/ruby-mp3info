@@ -10,7 +10,7 @@ require "tempfile"
 require "zlib"
 require "yaml"
 
-system("which id3v2 > /dev/null") || raise("id3v2 not found")
+GOT_ID3V2 = system("which id3v2 > /dev/null")
 
 class Mp3InfoTest < Test::Unit::TestCase
 
@@ -221,9 +221,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   #test the tag with the "id3v2" program
   def id3v2_prog_test(tag, written_tag)
-    return 
-    return if RUBY_PLATFORM =~ /win32/
-    return if `which id3v2`.empty?
+    return unless GOT_ID3V2
     start = false
     id3v2_output = {}
     `id3v2 -l #{TEMP_FILE}`.split(/\n/).each do |line|
@@ -275,6 +273,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     w = write_tag2_to_temp_file(tag2)
     assert_equal("http://foo.bar", w["WOAR"])
 
+    return unless GOT_ID3V2
     system(%(id3v2 --WOAR "http://foo.bar" "#{TEMP_FILE}"))
 
     Mp3Info.open(TEMP_FILE) do |mp3|
