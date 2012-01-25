@@ -221,6 +221,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   #test the tag with the "id3v2" program
   def id3v2_prog_test(tag, written_tag)
+    return if ENV["TRAVIS"] == "true"
     return if RUBY_PLATFORM =~ /win32/
     return if `which id3v2`.empty?
     start = false
@@ -231,13 +232,15 @@ class Mp3InfoTest < Test::Unit::TestCase
 	next    
       end
       next unless start
-      k, v = /^(.{4}) \(.+\): (.+)$/.match(line)[1,2]
-      case k
-	#COMM (Comments): ()[spa]: fmg
-        when "COMM"
-	  v.sub!(/\(\)\[.{3}\]: (.+)/, '\1')
+      if match = /^(.{4}) \(.+\): (.+)$/.match(line)
+        k, v = match[1, 2]
+        case k
+          #COMM (Comments): ()[spa]: fmg
+          when "COMM"
+            v.sub!(/\(\)\[.{3}\]: (.+)/, '\1')
+        end
+        id3v2_output[k] = v
       end
-      id3v2_output[k] = v
     end
 
     assert_equal( id3v2_output, written_tag, "id3v2 program output doesn't match")
