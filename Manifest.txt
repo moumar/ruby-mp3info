@@ -1,6 +1,6 @@
-History.txt
+History.rdoc
 Manifest.txt
-README.txt
+README.rdoc
 Rakefile
 install.rb
 lib/mp3info.rb

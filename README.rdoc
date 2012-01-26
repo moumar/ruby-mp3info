@@ -2,6 +2,12 @@
 
 * http://github.com/moumar/ruby-mp3info
 
+== Current build status
+
+https://secure.travis-ci.org/moumar/ruby-mp3info.png
+
+http://travis-ci.org/moumar/ruby-mp3info
+
 == DESCRIPTION:
 
 ruby-mp3info read low-level informations and manipulate tags on
