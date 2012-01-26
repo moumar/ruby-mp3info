@@ -14,8 +14,11 @@ mp3 files.
 * read, write, remove id3v1 and id3v2 tags
 * correctly read VBR files (with or without Xing header)
 * only 2.3 version is supported for writings id3v2 tags
+* id3v2 tags are always written in UTF-16 encoding
 
 == SYNOPSIS:
+
+  ### read and display infos & tags
 
   require "mp3info"
   # read and display infos & tags
@@ -35,6 +38,10 @@ mp3 files.
     mp3.tag.artist = "artist name"
   end
 
+  # tags are written when calling Mp3Info#close or at the end of the #open block
+
+  ### access id3v2 tags
+
   Mp3Info.open("myfile.mp3") do |mp3|
     # you can access four letter v2 tags like this
     puts mp3.tag2.TIT2
@@ -47,20 +54,11 @@ mp3 files.
     mp3.tag2.COMM = "my comment in french, correctly handled when reading and writing"
   end
 
-  # tags v2 will be read and written according to the :encoding settings
-  mp3 = Mp3Info.open("myfile.mp3", :encoding => 'utf-8')
-
 == REQUIREMENTS:
 
 * iconv
 
 == INSTALL:
-
-$ ruby install.rb config
-$ ruby install.rb setup
-# ruby install.rb install
-
- or
 
 * gem install ruby-mp3info
 
