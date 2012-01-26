@@ -36,20 +36,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     "genre" => 233
   }
 
-  FIXTURES = YAML::load_file( File.join(File.dirname(__FILE__), "fixtures.yml") )
-
   def setup
-    # Command to create a gzip'ed dummy MP3
-    # $ dd if=/dev/zero bs=1024 count=15 | \
-    #   lame --quiet --preset cbr 128 -r -s 44.1 --bitwidth 16 - - | \
-    #   ruby -rbase64 -rzlib -ryaml -e 'print(Zlib::Deflate.deflate($stdin.read)'
-    # vbr:
-    # $ dd if=/dev/zero of=#{tempfile.path} bs=1024 count=30000 |
-    #     system("lame -h -v -b 112 -r -s 44.1 --bitwidth 16 - /tmp/vbr.mp3
-    @valid_mp3, @valid_mp3_2_2, @vbr_mp3 = %w{empty_mp3 2_2_tagged vbr}.collect do |fixture_key|
-      Zlib::Inflate.inflate(FIXTURES[fixture_key])
-    end
-                  
     @tag = {
       "title" => "title",
       "artist" => "artist",
@@ -60,7 +47,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       "genre_s" => "Blues",
       "tracknum" => 36
     }
-    File.open(TEMP_FILE, "w") { |f| f.write(@valid_mp3) }
+    load_fixture_to_temp_file("empty_mp3")
   end
 
   def teardown
@@ -94,7 +81,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
   
   def test_vbr_mp3_length
-    File.open(TEMP_FILE, "w") { |f| f.write(@vbr_mp3) }
+    load_fixture_to_temp_file("vbr")
 
     Mp3Info.open(TEMP_FILE) do |info|
       assert(info.vbr)
@@ -145,8 +132,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   def id3_test(tag_str, valid_tag)
     tag = "TAG" + tag_str
-    File.open(TEMP_FILE, "w") do |f|
-      f.write(@valid_mp3)
+    File.open(TEMP_FILE, "a") do |f|
       f.write(tag)
     end
     assert(Mp3Info.hastag1?(TEMP_FILE))
@@ -282,7 +268,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_reading2_2_tags
-    File.open(TEMP_FILE, "w") { |f| f.write(@valid_mp3_2_2) }
+    load_fixture_to_temp_file("2_2_tagged")
 
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_equal "2.2.0", mp3.tag2.version
@@ -315,7 +301,8 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_writing_universal_tag_from_2_2_tags
-    File.open(TEMP_FILE, "w") { |f| f.write(@valid_mp3_2_2) }
+    load_fixture_to_temp_file("2_2_tagged")
+
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag.artist = "toto"
       mp3.tag.comments = "comments"
@@ -443,7 +430,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_audio_content_problematic
-    File.open(TEMP_FILE, "w") { |f| f.write(FIXTURES["audio_content_fixture"]) }
+    load_fixture_to_temp_file("audio_content_fixture", false)
     Mp3Info.open(TEMP_FILE) do |mp3|
       expected_pos = 150
       audio_content_pos, audio_content_size = mp3.audio_content
@@ -454,9 +441,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   def test_headerless_vbr_file
     mp3_length = 3
-    # this will generate a 15 sec mp3 file (44100hz*16bit*2channels) = 60/4 = 15
-    system("dd if=/dev/urandom bs=44100 count=#{mp3_length*4}  2>/dev/null | \
-            lame -v -m s --vbr-new --preset 128 -r -s 44.1 --bitwidth 16 - -  > #{TEMP_FILE} 2>/dev/null")
+    load_fixture_to_temp_file("small_vbr_mp3")
 
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert mp3.vbr
@@ -557,6 +542,29 @@ class Mp3InfoTest < Test::Unit::TestCase
     io
   end
 
+  FIXTURES = YAML::load_file( File.join(File.dirname(__FILE__), "fixtures.yml") )
+
+  def load_fixture_to_temp_file(fixture_key, zlibed = true)
+    # Command to create a gzip'ed dummy MP3
+    # $ dd if=/dev/zero bs=1024 count=15 | \
+    #   lame --quiet --preset cbr 128 -r -s 44.1 --bitwidth 16 - - | \
+    #   ruby -rbase64 -rzlib -ryaml -e 'print(Zlib::Deflate.deflate($stdin.read)'
+    # vbr:
+    # $ dd if=/dev/zero of=#{tempfile.path} bs=1024 count=30000 |
+    #     system("lame -h -v -b 112 -r -s 44.1 --bitwidth 16 - /tmp/vbr.mp3
+    #
+    # this will generate a #{mp3_length} sec mp3 file (44100hz*16bit*2channels) = 60/4 = 15
+    # system("dd if=/dev/urandom bs=44100 count=#{mp3_length*4}  2>/dev/null | \
+    #        lame -v -m s --vbr-new --preset 128 -r -s 44.1 --bitwidth 16 - -  > #{TEMP_FILE} 2>/dev/null")
+    content = FIXTURES[fixture_key]
+    if zlibed
+      content = Zlib::Inflate.inflate(content)
+    end
+
+    File.open(TEMP_FILE, "w") do |f| 
+      f.write(content)
+    end
+  end
 =begin
 
   def test_encoder
