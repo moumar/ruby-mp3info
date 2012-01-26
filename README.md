@@ -17,13 +17,15 @@ mp3 files.
 
 ## Synopsis
 
+### read and display infos & tags
+
     require "mp3info"
-    # read and display infos & tags
     Mp3Info.open("myfile.mp3") do |mp3info|
       puts mp3info
     end
 
-    # read/write tag1 and tag2 with Mp3Info#tag attribute
+### read/write tag1 and tag2 with Mp3Info#tag attribute
+
     # when reading tag2 have priority over tag1
     # when writing, each tag is written.
     Mp3Info.open("myfile.mp3") do |mp3|
@@ -34,6 +36,8 @@ mp3 files.
       mp3.tag.title = "track title"
       mp3.tag.artist = "artist name"
     end
+
+### access id3v2 tags
 
     Mp3Info.open("myfile.mp3") do |mp3|
       # you can access four letter v2 tags like this
