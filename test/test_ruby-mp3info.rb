@@ -10,7 +10,8 @@ require "tempfile"
 require "zlib"
 require "yaml"
 
-GOT_ID3V2 = system("which id3v2 > /dev/null")
+#GOT_ID3V2 = system("which id3v2 > /dev/null")
+GOT_ID3V2 = false
 
 class Mp3InfoTest < Test::Unit::TestCase
 
@@ -200,9 +201,9 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_id3v2_basic
-    w = write_tag2_to_temp_file(DUMMY_TAG2)
-    assert_equal(DUMMY_TAG2, w)
-    id3v2_prog_test(DUMMY_TAG2, w)
+    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
+    assert_equal(DUMMY_TAG2, written_tag)
+    id3v2_prog_test(DUMMY_TAG2, written_tag)
   end
 
   #test the tag with the "id3v2" program
@@ -341,7 +342,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       Mp3Info.open(fn) do |mp3|
         mp3.tag.title = fn
         mp3.flush
-        if RUBY_VERSION < "1.9.0"
+        if RUBY_VERSION[0..2] == "1.8"
           assert_equal fn, mp3.tag.title
         else
           assert_equal fn, mp3.tag.title.force_encoding("utf-8")
@@ -351,58 +352,6 @@ class Mp3InfoTest < Test::Unit::TestCase
       File.delete(fn)
     end
   end
-
-  def test_validity_of_id3v2_options
-    info = Mp3Info.new(TEMP_FILE)
-    expected_hash = { :lang => "ENG", :encoding => "iso-8859-1" }
-    assert_equal( expected_hash, info.tag2.options)
-
-    assert_raises(ArgumentError) do
-      Mp3Info.new(TEMP_FILE, :encoding => "bad encoding")
-    end
-  end
-
-  def test_encoding_read
-    Mp3Info.open(TEMP_FILE) do |mp3|
-      mp3.tag2['TEST'] = "all\xe9"
-    end
-
-    Mp3Info.open(TEMP_FILE, :encoding => "utf-8") do |mp3|
-      assert_equal "allé", mp3.tag2['TEST']
-    end
-
-    Mp3Info.open(TEMP_FILE, :encoding => "iso-8859-1") do |mp3|
-      if RUBY_VERSION < "1.9.0"
-        assert_equal "all\xe9", mp3.tag2['TEST']
-      else
-        assert_equal "all\xe9".force_encoding("binary"), mp3.tag2['TEST']
-      end
-    end
-  end
-
-  def test_encoding_write
-    Mp3Info.open(TEMP_FILE, :encoding => 'utf-8') do |mp3|
-      mp3.tag2['TEST'] = "all\xc3\xa9"
-    end
-
-    Mp3Info.open(TEMP_FILE, :encoding => "iso-8859-1") do |mp3|
-      if RUBY_VERSION < "1.9.0"
-        assert_equal "all\xe9", mp3.tag2['TEST']
-      else
-        assert_equal "all\xe9".force_encoding("iso-8859-1"), mp3.tag2['TEST']
-      end
-    end
-  end
-
-=begin
-  def test_should_raises_exception_when_writing_badly_encoded_frames
-    assert_raises(Iconv::Failure) do 
-      Mp3Info.open(TEMP_FILE, :encoding => 'utf-8') do |mp3|
-	mp3.tag2['TEST'] = "all\xc3"
-      end
-    end
-  end
-=end
 
   def test_audio_content
     require "digest/md5"
@@ -507,7 +456,8 @@ class Mp3InfoTest < Test::Unit::TestCase
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.update(tag)
     end
-    return Mp3Info.open(TEMP_FILE) { |m| m.tag2 }
+    written_tag = Mp3Info.open(TEMP_FILE) { |m| m.tag2 }
+    return written_tag
     #system("cp -v #{TEMP_FILE} #{TEMP_FILE}.test")
   end
 
