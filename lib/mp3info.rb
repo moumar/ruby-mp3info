@@ -4,6 +4,7 @@
 # Website:: http://ruby-mp3info.rubyforge.org/
 
 require "fileutils"
+require "stringio"
 require "mp3info/extension_modules"
 require "mp3info/id3v2"
 
@@ -219,6 +220,9 @@ class Mp3Info
   def initialize(filename_or_io, options = {})
     warn("#{self.class}::new() does not take block; use #{self.class}::open() instead") if block_given?
     @filename_or_io = filename_or_io
+    if @filename_or_io.nil?
+      raise ArgumentError, "filename is nil"
+    end
     options = {:parse_mp3 => true, :parse_tags => true}.update(options)
     @tag_parsing_enabled = options.delete(:parse_tags)
     @mp3_parsing_enabled = options.delete(:parse_mp3)
@@ -230,16 +234,16 @@ class Mp3Info
   def reload
     @header = {}
 
-    if @filename_or_io.is_a?(String)
-      @io_is_a_file = true
-      @io = File.new(@filename_or_io, "rb")
-      @io_size = @io.stat.size
-      @filename = @filename_or_io
-    elsif @filename_or_io.is_a?(StringIO)
+    if @filename_or_io.is_a?(StringIO)
       @io_is_a_file = false
       @io = @filename_or_io
       @io_size = @io.size
       @filename = nil
+    else
+      @io_is_a_file = true
+      @io = File.new(@filename_or_io, "rb")
+      @io_size = @io.stat.size
+      @filename = @filename_or_io
     end
 
     if @io_size == 0
