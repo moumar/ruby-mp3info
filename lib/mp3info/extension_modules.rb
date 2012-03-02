@@ -1,6 +1,6 @@
 # coding:utf-8
 # License:: Ruby
-# Author:: Guillaume Pierronnet (mailto:moumar_AT__rubyforge_DOT_org)
+# Author:: Guillaume Pierronnet (mailto:guillaume.pierronnet@gmail.com)
 # Website:: http://ruby-mp3info.rubyforge.org/
 
 class Mp3Info 
@@ -40,7 +40,7 @@ class Mp3Info
     end                 
   end
 
-  class EncodingHelper
+  class EncodingHelper #:nodoc:
     def self.convert_to(value, from, to)
       if RUBY_1_8
         if to == "iso-8859-1"
