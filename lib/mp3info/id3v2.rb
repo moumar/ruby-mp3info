@@ -1,10 +1,16 @@
-# coding:utf-8
+# encoding: utf-8
 # License:: Ruby
 # Author:: Guillaume Pierronnet (mailto:moumar_AT__rubyforge_DOT_org)
 # Website:: http://ruby-mp3info.rubyforge.org/
 
 require "delegate"
-require "iconv"
+
+if RUBY_VERSION[0..2] == "1.8"
+  require "iconv"
+  RUBY_1_8 = true
+else
+  RUBY_1_8 = false
+end
 
 require "mp3info/extension_modules"
 
@@ -15,9 +21,6 @@ class ID3v2Error < StandardError ; end
 # (respectively related to 2.2 and 2.3+ tag) and value represented as array or raw value.
 # Written version is always 2.3.
 class ID3v2 < DelegateClass(Hash) 
-  
-  # Major version used when writing tags
-  WRITE_VERSION = 3
   
   TAGS = {
     "AENC" => "Audio encryption",
@@ -169,26 +172,22 @@ class ID3v2 < DelegateClass(Hash)
 
   # :+lang+: for writing comments
   #
-  # :+encoding+: one of the string of +TEXT_ENCODINGS+, 
-  # used as a source and destination encoding respectively
-  # for read and write tag2 values.
+  # [DEPRECATION] :+encoding+: one of the string of +TEXT_ENCODINGS+, 
+  # use of :encoding parameter is DEPRECATED. In ruby 1.8, use utf-8 encoded strings for tags.
+  # In ruby >= 1.9, strings are automatically transcoded from their originaloriginal  encoding.
   attr_reader :options
   
   # possible options are described above ('options' attribute)
   # you can access this object like an hash, with [] and []= methods
   # special cases are ["disc_number"] and ["disc_total"] mirroring TPOS attribute
   def initialize(options = {})
-    @options = { 
-      :lang => "ENG",
-      :encoding => "iso-8859-1"
-    }
+    @options = { :lang => "ENG" }
+    if @options[:encoding]
+      warn("use of :encoding parameter is DEPRECATED. In ruby 1.8, use utf-8 encoded strings for tags.\n" +
+           "In ruby >= 1.9, strings are automatically transcoded from their original encoding.")
+    end
 
     @options.update(options)
-    @text_encoding_index = TEXT_ENCODINGS.index(@options[:encoding])
-    
-    unless @text_encoding_index
-      raise(ArgumentError, "bad id3v2 text encoding specified")
-    end
 
     @hash = {}
     #TAGS.keys.each { |k| @hash[k] = nil }
@@ -250,7 +249,7 @@ class ID3v2 < DelegateClass(Hash)
     @io = nil
   end
 
-  # dump tag for writing. Version is always 2.#{WRITE_VERSION}.0.
+  # dump tag for writing. Version is always 2.3.0
   def to_bin
     #TODO handle of @tag2[TLEN"]
     #TODO add of crc
@@ -269,13 +268,13 @@ class ID3v2 < DelegateClass(Hash)
       
       # Output one flag for each array element, or one only if it's not an array
       [v].flatten.each do |value|
-        data = encode_tag(k, value.to_s, WRITE_VERSION)
+        data = encode_tag(k, value.to_s)
         #data << "\x00"*2 #End of tag
 
         tag << k[0,4]   #4 characte max for a tag's key
         #tag << to_syncsafe(data.size) #+1 because of the language encoding byte
         size = data.size
-        if RUBY_VERSION >= "1.9.0"
+        unless RUBY_1_8
           size = data.dup.force_encoding("binary").size
         end
         tag << [size].pack("N") #+1 because of the language encoding byte
@@ -286,7 +285,7 @@ class ID3v2 < DelegateClass(Hash)
 
     tag_str = "ID3"
     #version_maj, version_min, unsync, ext_header, experimental, footer 
-    tag_str << [ WRITE_VERSION, 0, "0000" ].pack("CCB4")
+    tag_str << [ 3, 0, "0000" ].pack("CCB4")
     tag_str << [to_syncsafe(tag.size)].pack("N")
     tag_str << tag
     puts "tag in binary format: #{tag_str.inspect}" if $DEBUG
@@ -295,60 +294,83 @@ class ID3v2 < DelegateClass(Hash)
 
   private
 
-  def encode_tag(name, value, version)
-    puts "encode_tag(#{name.inspect}, #{value.inspect}, #{version})" if $DEBUG
+  def encode_tag(name, value)
+    puts "encode_tag(#{name.inspect}, #{value.inspect})" if $DEBUG
+    name = name.to_s
 
-    text_encoding_index = @text_encoding_index 
-    if (name.index("T") == 0 || name == "COMM" ) && version == 3
-      # in id3v2.3 tags, there is only 2 encodings possible
-      transcoded_value = value
-      if text_encoding_index >= 2
-        begin
-	  transcoded_value = Iconv.iconv(TEXT_ENCODINGS[1], 
-					 TEXT_ENCODINGS[text_encoding_index], 
-					 value).first
-        rescue Iconv::Failure
-	  transcoded_value = value
-	end
-	text_encoding_index = 1
-      end
+    if name =~ /^(COM|T)/
+      transcoded_value = Mp3Info::EncodingHelper.convert_to(value, "utf-8", "utf-16")
     end
-
     case name
       when "COMM"
-      puts "encode COMM: enc: #{text_encoding_index}, lang: #{@options[:lang]}, str: #{transcoded_value.dump}" if $DEBUG
-	[ text_encoding_index , @options[:lang], 0, transcoded_value ].pack("ca3ca*")
+        puts "encode COMM: lang: #{@options[:lang]}, value #{transcoded_value.inspect}" if $DEBUG
+	s = [ 1, @options[:lang], "\xFE\xFF\x00\x00", transcoded_value].pack("ca3a*a*")
+	return s
       when /^T/
-	text_encoding_index.chr + transcoded_value
+        unless RUBY_1_8
+          transcoded_value.force_encoding("BINARY")
+        end
+	return "\x01" + transcoded_value
       else
-        value
+        return value
     end
   end
 
   ### Read a tag from file and perform UNICODE translation if needed
   def decode_tag(name, raw_value)
     puts("decode_tag(#{name.inspect}, #{raw_value.inspect})") if $DEBUG
-    case name
-      when /^COM/
+    if name =~ /^(T|COM)/
+      if name =~ /^COM/
         #FIXME improve this
-	encoding, lang, str = raw_value.unpack("ca3a*") 
-	out = raw_value.split(0.chr).last
-      when /^T/
-	encoding = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)   
-	out = raw_value[1..-1] 
-	# we need to convert the string in order to match
-	# the requested encoding
-	if encoding && TEXT_ENCODINGS[encoding] && out && encoding != @text_encoding_index
-	  begin
-	    out = Iconv.iconv(@options[:encoding], TEXT_ENCODINGS[encoding], out).first
-	  rescue Iconv::Failure
-	  end
-	end
-        # remove padding zeros for textual tags
-        out.sub!(/\0*$/, '') unless out.nil?
-        return out
+        encoding_index, lang, raw_tag = raw_value.unpack("ca3a*")
+        if encoding_index == 1
+=begin
+          comment = Mp3Info::EncodingHelper.decode_utf16(raw_tag)
+          e = comment.encoding
+          out = comment.force_encoding("BINARY").split("\x00\x00").last.force_encoding(e)
+          p out
+=end
+          comment = Mp3Info::EncodingHelper.decode_utf16(raw_tag)
+          split_val = RUBY_1_8 ? "\x00\x00" : "\x00".encode(comment.encoding)
+          out = comment.split(split_val).last rescue ""
+        else
+          comment, out = raw_tag.split("\x00", 2)
+        end
+        puts "COM tag found. encoding: #{encoding_index} lang: #{lang} str: #{out.inspect}" if $DEBUG
       else
-        return raw_value
+        encoding_index = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)   
+        out = raw_value[1..-1]
+      end
+      # we need to convert the string in order to match
+      # the requested encoding
+      if encoding_index && TEXT_ENCODINGS[encoding_index] && out
+        if RUBY_1_8
+          out = Mp3Info::EncodingHelper.convert_to(out, TEXT_ENCODINGS[encoding_index], "utf-8")
+        else
+          if encoding_index == 1
+            out = Mp3Info::EncodingHelper.decode_utf16(out)
+          else
+            out.force_encoding(TEXT_ENCODINGS[encoding_index])
+          end
+          if out
+            out.encode!("utf-8")
+          end
+        end
+      end
+
+      if out
+        # remove padding zeros for textual tags
+        if RUBY_1_8
+          r = /\0*$/
+        else
+          r = Regexp.new("\x00*$".encode(out.encoding))
+        end
+        out.sub!(r, '') 
+      end
+
+      return out
+    else
+      return raw_value
     end
   end
 
@@ -404,21 +426,26 @@ class ID3v2 < DelegateClass(Hash)
       
     data_io = @io.read(size)
     data = decode_tag(name, data_io)
-
-    if self["TPOS"] =~ /(\d+)\s*\/\s*(\d+)/
-      self["disc_number"] = $1.to_i
-      self["disc_total"] = $2.to_i
-    end
-
-    if self.keys.include?(name)
-      unless self[name].is_a?(Array)
-        self[name] = [ self[name] ]
+    if data && !data.empty?
+      if self.keys.include?(name) 
+        if self[name].is_a?(Array)
+          unless self[name].include?(data)
+            self[name] << data
+          end
+        else
+          self[name] = [ self[name], data ]
+        end
+      else
+        self[name] = data 
       end
-      self[name] << data
-    else
-      self[name] = data 
+
+      if name == "TPOS" && data =~ /(\d+)\s*\/\s*(\d+)/
+        self["disc_number"] = $1.to_i
+        self["disc_total"] = $2.to_i
+      end
     end
-    p data if $DEBUG
+
+    puts "self[#{name.inspect}] = #{self[name].inspect}" if $DEBUG
   end
   
   ### runs thru @file one char at a time looking for best guess of first MPEG
@@ -434,5 +461,6 @@ class ID3v2 < DelegateClass(Hash)
   def to_syncsafe(num)
     ( (num<<3) & 0x7f000000 )  + ( (num<<2) & 0x7f0000 ) + ( (num<<1) & 0x7f00 ) + ( num & 0x7f )
   end
+
 end
 

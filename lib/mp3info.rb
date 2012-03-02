@@ -17,7 +17,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.6.16"
+  VERSION = "0.7"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -245,7 +245,6 @@ class Mp3Info
     if @io_size == 0
       raise(Mp3InfoError, "empty file or IO")
     end
-    
 
     @io.extend(Mp3FileMethods)
     @tag1 = @tag = @tag1_orig = @tag_orig = {}
@@ -554,9 +553,10 @@ private
   ### assumes @io is pointing to char after "TAG" id
   def gettag1
     @tag1_parsed = true
-    @tag1["title"] = @io.read(30).unpack("A*").first
-    @tag1["artist"] = @io.read(30).unpack("A*").first
-    @tag1["album"] = @io.read(30).unpack("A*").first
+    %w{title artist album}.each do |tag|
+      v = @io.read(30).unpack("A*").first
+      @tag1[tag] = Mp3Info::EncodingHelper.convert_from_iso_8859_1(v)
+    end
     year_t = @io.read(4).to_i
     @tag1["year"] = year_t unless year_t == 0
     comments = @io.read(30)
@@ -564,7 +564,8 @@ private
       @tag1["tracknum"] = comments.getbyte(-1).to_i
       comments.chop! #remove the last char
     end
-    @tag1["comments"] = comments.unpack("A*").first
+    comment = comments.unpack("A*").first
+    @tag1["comments"] = Mp3Info::EncodingHelper.convert_from_iso_8859_1(comment)
     @tag1["genre"] = @io.getbyte
     @tag1["genre_s"] = GENRES[@tag1["genre"]] || ""
 

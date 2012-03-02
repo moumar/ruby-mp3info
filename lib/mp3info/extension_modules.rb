@@ -21,10 +21,6 @@ class Mp3Info
   class ::String
     if RUBY_VERSION < "1.9.0"
       alias getbyte []
-    else
-      def getbyte(i)
-        self[i].ord unless self[i].nil?
-      end
     end
   end
 
@@ -42,5 +38,51 @@ class Mp3Info
     def get_syncsafe
       (getbyte << 21) + (getbyte << 14) + (getbyte << 7) + getbyte
     end                 
+  end
+
+  class EncodingHelper
+    def self.convert_to(value, from, to)
+      if RUBY_1_8
+        if to == "iso-8859-1"
+          to = to + "//TRANSLIT"
+        end
+        ruby_18_encode(from, to, value)
+      else
+        if to == "utf-16"
+          ("\uFEFF" +  value).encode("UTF-16BE")
+        else
+          value.encode(to)
+        end
+      end
+    end
+
+    def self.convert_from_iso_8859_1(value)
+      if RUBY_1_8
+        ruby_18_encode("utf-8", "iso-8859-1", value)
+      else
+        value.force_encoding("iso-8859-1").encode("utf-8")
+      end
+    end
+
+    def self.ruby_18_encode(from, to, value)
+      begin
+        Iconv.iconv(to, from, value).first
+      rescue Iconv::Failure
+        value
+      end
+    end
+
+    def self.decode_utf16(out)
+      if RUBY_1_8
+        convert_to(out, "UTF-8", "UTF-16")
+      else
+        if out.bytes.first == 0xff
+          tag_encoding = "UTF-16LE"
+        else
+          tag_encoding = "UTF-16BE"
+        end
+        out = out.dup.force_encoding(tag_encoding)[1..-1]
+      end
+    end
   end
 end

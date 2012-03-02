@@ -1,5 +1,5 @@
-#!/usr/bin/env ruby1.9
-# coding:utf-8
+#!/usr/bin/env ruby
+# encoding: utf-8
 
 $:.unshift("lib/")
 
@@ -142,7 +142,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_removetag2
-    w = write_tag2_to_temp_file({"TIT2" => "sdfqdsf"})
+    w = write_tag2_to_temp_file("TIT2" => "sdfqdsf")
 
     assert( Mp3Info.hastag2?(TEMP_FILE) )
     Mp3Info.removetag2(TEMP_FILE)
@@ -186,7 +186,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   def test_id3v2_version
     written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
-    assert_equal( "2.#{ID3v2::WRITE_VERSION}.0", written_tag.version )
+    assert_equal( "2.3.0", written_tag.version )
   end
 
   def test_id3v2_methods
@@ -200,9 +200,9 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_id3v2_basic
-    w = write_tag2_to_temp_file(DUMMY_TAG2)
-    assert_equal(DUMMY_TAG2, w)
-    id3v2_prog_test(DUMMY_TAG2, w)
+    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
+    assert_equal(DUMMY_TAG2, written_tag)
+    id3v2_prog_test(DUMMY_TAG2, written_tag)
   end
 
   #test the tag with the "id3v2" program
@@ -210,7 +210,13 @@ class Mp3InfoTest < Test::Unit::TestCase
     return unless GOT_ID3V2
     start = false
     id3v2_output = {}
-    `id3v2 -l #{TEMP_FILE}`.split(/\n/).each do |line|
+=begin
+    id3v2 tag info for test/test_mp3info.mp3:
+      COMM (Comments): (~)[ENG]: 
+      test/test_mp3info.mp3: No ID3v1 tag
+=end
+    raw_output = `id3v2 -l #{TEMP_FILE}`
+    raw_output.split(/\n/).each do |line|
       if line =~ /^id3v2 tag info/
         start = true 
 	next    
@@ -230,9 +236,6 @@ class Mp3InfoTest < Test::Unit::TestCase
     assert_equal( id3v2_output, written_tag, "id3v2 program output doesn't match")
   end
 
-  def test_id3v2_trash
-  end
-
   def test_id3v2_complex
     tag = {}
     #ID3v2::TAGS.keys.each do |k|
@@ -247,10 +250,6 @@ class Mp3InfoTest < Test::Unit::TestCase
   def test_id3v2_bigtag
     tag = {"APIC" => random_string(1024) }
     assert_equal(tag, write_tag2_to_temp_file(tag))
-  end
-
-  def test_infinite_loop_on_seek_to_v2_end
-    
   end
 
   def test_leading_char_gets_chopped
@@ -341,7 +340,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       Mp3Info.open(fn) do |mp3|
         mp3.tag.title = fn
         mp3.flush
-        if RUBY_VERSION < "1.9.0"
+        if RUBY_VERSION[0..2] == "1.8"
           assert_equal fn, mp3.tag.title
         else
           assert_equal fn, mp3.tag.title.force_encoding("utf-8")
@@ -351,58 +350,6 @@ class Mp3InfoTest < Test::Unit::TestCase
       File.delete(fn)
     end
   end
-
-  def test_validity_of_id3v2_options
-    info = Mp3Info.new(TEMP_FILE)
-    expected_hash = { :lang => "ENG", :encoding => "iso-8859-1" }
-    assert_equal( expected_hash, info.tag2.options)
-
-    assert_raises(ArgumentError) do
-      Mp3Info.new(TEMP_FILE, :encoding => "bad encoding")
-    end
-  end
-
-  def test_encoding_read
-    Mp3Info.open(TEMP_FILE) do |mp3|
-      mp3.tag2['TEST'] = "all\xe9"
-    end
-
-    Mp3Info.open(TEMP_FILE, :encoding => "utf-8") do |mp3|
-      assert_equal "allé", mp3.tag2['TEST']
-    end
-
-    Mp3Info.open(TEMP_FILE, :encoding => "iso-8859-1") do |mp3|
-      if RUBY_VERSION < "1.9.0"
-        assert_equal "all\xe9", mp3.tag2['TEST']
-      else
-        assert_equal "all\xe9".force_encoding("binary"), mp3.tag2['TEST']
-      end
-    end
-  end
-
-  def test_encoding_write
-    Mp3Info.open(TEMP_FILE, :encoding => 'utf-8') do |mp3|
-      mp3.tag2['TEST'] = "all\xc3\xa9"
-    end
-
-    Mp3Info.open(TEMP_FILE, :encoding => "iso-8859-1") do |mp3|
-      if RUBY_VERSION < "1.9.0"
-        assert_equal "all\xe9", mp3.tag2['TEST']
-      else
-        assert_equal "all\xe9".force_encoding("iso-8859-1"), mp3.tag2['TEST']
-      end
-    end
-  end
-
-=begin
-  def test_should_raises_exception_when_writing_badly_encoded_frames
-    assert_raises(Iconv::Failure) do 
-      Mp3Info.open(TEMP_FILE, :encoding => 'utf-8') do |mp3|
-	mp3.tag2['TEST'] = "all\xc3"
-      end
-    end
-  end
-=end
 
   def test_audio_content
     require "digest/md5"
