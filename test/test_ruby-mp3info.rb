@@ -441,6 +441,12 @@ class Mp3InfoTest < Test::Unit::TestCase
     assert(Mp3Info.hastag2?(io))
   end
 
+  def test_convert_to_utf16_little_endian
+    s = Mp3Info::EncodingHelper.convert_to("track's title €éàïôù", "utf-8", "utf-16")
+    expected = "ff fe 74 00 72 00 61 00 63 00 6b 00 27 00 73 00 20 00 74 00 69 00 74 00 6c 00 65 00 20 00 ac 20 e9 00 e0 00 ef 00 f4 00 f9 00"
+    assert_equal(expected, s.bytes.map{|b| b.to_s(16).rjust(2,"0")}.to_a.join(" "))
+  end
+
   def compute_audio_content_mp3_digest(mp3)
     pos, size = mp3.audio_content
     data = File.open(mp3.filename) do |f|

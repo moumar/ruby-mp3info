@@ -49,7 +49,7 @@ class Mp3Info
         ruby_18_encode(from, to, value)
       else
         if to == "utf-16"
-          ("\uFEFF" +  value).encode("UTF-16BE")
+          ("\uFEFF" +  value).encode("UTF-16LE") # Chab 01.apr.2012 : moved from big to little endian for more compatibility (Windows Media Player, older Quicktime..)
         else
           value.encode(to)
         end
