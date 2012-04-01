@@ -1,3 +1,7 @@
+=== 0.7.1 / 2012-04-01
+
+* convert to utf-16 little endian (instead of big) for more compatibility
+
 === 0.7 / 2012-02-29
 
 * removed iconv for ruby >= 1.9
