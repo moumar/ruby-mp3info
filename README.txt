@@ -56,7 +56,7 @@ mp3 files.
 
 == REQUIREMENTS:
 
-* iconv
+* iconv when using ruby 1.8
 
 == INSTALL:
 
