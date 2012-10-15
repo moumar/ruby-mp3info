@@ -223,7 +223,7 @@ class ID3v2 < DelegateClass(Hash)
     original_pos = @io.pos
     @io.extend(Mp3Info::Mp3FileMethods)
     version_maj, version_min, flags = @io.read(3).unpack("CCB4")
-    @unsync, ext_header, experimental, footer = (0..3).collect { |i| flags[i].chr == '1' }
+    @unsync, ext_header, _, _ = (0..3).collect { |i| flags[i].chr == '1' }
     raise(ID3v2Error, "can't find version_maj ('#{version_maj}')") unless [2, 3, 4].include?(version_maj)
     @version_maj, @version_min = version_maj, version_min
     @tag_length = @io.get_syncsafe
