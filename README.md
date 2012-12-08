@@ -1,31 +1,32 @@
-= ruby-mp3info
+# ruby-mp3info
 
 * http://github.com/moumar/ruby-mp3info
 
-== DESCRIPTION:
+## Description
 
-ruby-mp3info read low-level informations and manipulate tags on
-mp3 files.
+ruby-mp3info read low-level informations and manipulate tags on mp3 files.
 
-== FEATURES/PROBLEMS:
+## Features/Problems
 
-* written in pure ruby 
-* read low-level informations like bitrate, length, samplerate, etc...
-* read, write, remove id3v1 and id3v2 tags
-* correctly read VBR files (with or without Xing header)
-* only 2.3 version is supported for writings id3v2 tags
+* Written in pure ruby 
+* Read low-level informations like bitrate, length, samplerate, etc...
+* Read, write, remove id3v1 and id3v2 tags
+* Correctly read VBR files (with or without Xing header)
+* Only 2.3 version is supported for writings id3v2 tags
 * id3v2 tags are always written in UTF-16 encoding
 
-== SYNOPSIS:
+## Synopsis
 
-  ### read and display infos & tags
-
+```ruby
+  ### Read and display infos & tags
   require "mp3info"
-  # read and display infos & tags
+  
+  # Read and display infos & tags
+
   Mp3Info.open("myfile.mp3") do |mp3info|
     puts mp3info
   end
-
+  
   # read/write tag1 and tag2 with Mp3Info#tag attribute
   # when reading tag2 have priority over tag1
   # when writing, each tag is written.
@@ -53,29 +54,29 @@ mp3 files.
     mp3.tag2.options[:lang] = "FRE"
     mp3.tag2.COMM = "my comment in french, correctly handled when reading and writing"
   end
+```
 
-== REQUIREMENTS:
+## Requirements
 
 * iconv when using ruby 1.8
 
-== INSTALL:
+## Install
 
-* gem install ruby-mp3info
+    gem install ruby-mp3info
 
-== DEVELOPERS:
+## Developers
 
 After checking out the source, run:
 
-  $ rake newb
+    $ rake newb
 
-This task will install any missing dependencies, run the tests/specs,
-and generate the RDoc.
+This task will install any missing dependencies, run the tests/specs, and generate the RDoc.
 
-== LICENSE:
+## License
 
 ruby
 
-== TODO:
+## TODO:
 
 * encoder detection
 * support for more tags in id3v2
