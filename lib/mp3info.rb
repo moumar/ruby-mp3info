@@ -234,7 +234,7 @@ class Mp3Info
   def reload
     @header = {}
 
-    if @filename_or_io.is_a?(StringIO)
+    if @filename_or_io.is_a?(StringIO) || @filename_or_io.is_a?(IO)
       @io_is_a_file = false
       @io = @filename_or_io
       @io_size = @io.size

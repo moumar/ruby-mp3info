@@ -447,6 +447,13 @@ class Mp3InfoTest < Test::Unit::TestCase
     assert_equal(expected, s.bytes.map{|b| b.to_s(16).rjust(2,"0")}.to_a.join(" "))
   end
 
+  def test_modifying_an_io
+    io = open(TEMP_FILE, "r")
+    Mp3Info.open(io) do |mp3| 
+      mp3.tag.artist = "test_artist"
+    end
+  end
+
   def compute_audio_content_mp3_digest(mp3)
     pos, size = mp3.audio_content
     data = File.open(mp3.filename) do |f|
