@@ -683,7 +683,7 @@ private
       @length = ((stream_size << 3)/1000.0)/@bitrate
       # read the first 100 frames and decide if the mp3 is vbr and needs full scan
       begin
-        bitrate, length = frame_scan(100)
+        bitrate = frame_scan(100).first
         if @bitrate != bitrate
           @vbr = true
           @bitrate, @length = frame_scan
