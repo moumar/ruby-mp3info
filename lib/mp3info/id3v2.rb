@@ -217,6 +217,23 @@ class ID3v2 < DelegateClass(Hash)
     end
   end
 
+  ### cuts out long tag values from hash for display on screen
+  def to_inspect_hash
+    result = self.to_hash.dup
+    result.each do |k,v|
+      if v.is_a? Array
+        v.each_index do |i, item|
+          if (v[i].is_a? String and v[i].length > 128)
+            result[k][i] = pretty_header(v[i])
+          end
+        end
+      elsif v.is_a? String and v.length > 128
+        result[k] = pretty_header(v) # this method 'snips' long data
+      end
+    end
+    result
+  end
+
   ### gets id3v2 tag information from io object (must support #seek() method)
   def from_io(io)
     @io = io
@@ -461,6 +478,30 @@ class ID3v2 < DelegateClass(Hash)
   def to_syncsafe(num)
     ( (num<<3) & 0x7f000000 )  + ( (num<<2) & 0x7f0000 ) + ( (num<<1) & 0x7f00 ) + ( num & 0x7f )
   end
+  
+  ### this is especially useful for printing out APIC data because
+  ### only the header of the APIC tag is of interest
+  ### The result also shows some bytes escaped for cleaner display
+  def pretty_header(str, chars=128)
+    result = []
+    str.unpack('c*').each_with_index do |c, i|
+      break if i >= chars
+      if c > 9
+        result << str[i]
+      elsif c == -1
+        result << "\\xFF"
+      elsif c == 0
+        result << "\\x00"
+      elsif c == -119
+        result << "\\x89"
+      else
+        result << "\\x0#{c}"
+      end
+    end
+    result << "<<<...snip...>>>"
+    result.join
+  end
+
 
 end
 

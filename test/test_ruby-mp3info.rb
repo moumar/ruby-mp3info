@@ -189,6 +189,16 @@ class Mp3InfoTest < Test::Unit::TestCase
     assert_equal( "2.3.0", written_tag.version )
   end
 
+  # test for good output of APIC tag inspect (escaped and snipped)
+  def test_id3v2_to_inspect_hash
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      mp3.tag2.APIC =  "\x00testing.jpg\x00" * 20
+      escaped_str = "\\x00testing.jpg\\x00" * 20
+      snipped_str = escaped_str.unpack('a185').first + "<<<...snip...>>>"     
+      assert_equal(snipped_str, mp3.tag2.to_inspect_hash["APIC"])
+    end
+  end
+
   def test_id3v2_methods
     tag = { "TIT2" => "tit2", "TPE1" => "tpe1" }
     Mp3Info.open(TEMP_FILE) do |mp3|

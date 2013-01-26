@@ -471,7 +471,7 @@ class Mp3Info
   def to_s
     s = "MPEG #{@mpeg_version} Layer #{@layer} #{@vbr ? "VBR" : "CBR"} #{@bitrate} Kbps #{@channel_mode} #{@samplerate} Hz length #{@length} sec. header #{@header.inspect} "
     s << "tag1: "+@tag1.to_hash.inspect+"\n" if hastag1?
-    s << "tag2: "+@tag2.to_hash.inspect+"\n" if hastag2?
+    s << "tag2: "+@tag2.to_inspect_hash.inspect+"\n" if hastag2?
     s
   end
 
