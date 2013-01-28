@@ -5,8 +5,8 @@
 
 require "fileutils"
 require "stringio"
-require "/home/brian/lab/ruby-mp3info/lib/mp3info/extension_modules"
-require "/home/brian/lab/ruby-mp3info/lib/mp3info/id3v2"
+require "mp3info/id3v2"
+require "mp3info/extension_modules"
 
 # ruby -d to display debugging infos
 
@@ -18,7 +18,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.7.2"
+  VERSION = "0.7.3"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {

@@ -54,6 +54,21 @@ ruby-mp3info read low-level informations and manipulate tags on mp3 files.
     mp3.tag2.options[:lang] = "FRE"
     mp3.tag2.COMM = "my comment in french, correctly handled when reading and writing"
   end
+
+  ### image manipulation
+
+  file = File.new('input_img','rb')
+  Mp3Info.open '1.mp3' do |m|
+     result = m.tag2.get_pictures # array of images :
+     result.each do |img| # [ ["img1_filename", "img1_data" ] ]
+        puts img[1].unpack('a128').first.inspect; gets
+        File.open(img[0], 'wb'){|f| f.write img[1] }
+    end
+    m.tag2.remove_pictures # remove all images
+    m.tag2.add_picture(file.read) # optionally, you may include options for the header:
+    # options = { mime: 'gif', description: "description",
+    #             pic_type: 0 }
+  end
 ```
 
 ## Requirements

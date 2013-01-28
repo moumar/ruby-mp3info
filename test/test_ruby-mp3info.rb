@@ -199,6 +199,29 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
   end
 
+  def test_id3v2_get_pictures
+    img = "\x89PNG".force_encoding('BINARY') + 
+      random_string(120).force_encoding('BINARY')
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      mp3.tag2.add_picture(img, :description => 'example image.png')
+    end
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_equal(["01_example image.png", img], mp3.tag2.get_pictures[0])
+    end
+  end
+  
+  def test_id3v2_remove_pictures
+    jpg_data = "\xFF".force_encoding('BINARY') + 
+      random_string(123).force_encoding('BINARY')
+    Mp3Info.open(TEMP_FILE) do |mp|
+      mp.tag2.add_picture(jpg_data)
+    end
+    Mp3Info.open(TEMP_FILE) do |mp|
+      mp.tag2.remove_pictures
+      assert_equal([], mp.tag2.get_pictures)
+    end
+  end
+
   def test_id3v2_methods
     tag = { "TIT2" => "tit2", "TPE1" => "tpe1" }
     Mp3Info.open(TEMP_FILE) do |mp3|
