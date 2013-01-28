@@ -12,7 +12,7 @@ else
   RUBY_1_8 = false
 end
 
-require "mp3info/extension_modules"
+require "/home/brian/lab/ruby-mp3info/lib/mp3info/extension_modules"
 
 class ID3v2Error < StandardError ; end
 
@@ -219,7 +219,7 @@ class ID3v2 < DelegateClass(Hash)
 
   ### cuts out long tag values from hash for display on screen
   def to_inspect_hash
-    result = self.to_hash.dup
+    result = Marshal.load(Marshal.dump(self.to_hash))
     result.each do |k,v|
       if v.is_a? Array
         v.each_index do |i, item|
