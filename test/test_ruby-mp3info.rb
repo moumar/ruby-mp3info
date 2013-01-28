@@ -189,6 +189,39 @@ class Mp3InfoTest < Test::Unit::TestCase
     assert_equal( "2.3.0", written_tag.version )
   end
 
+  # test for good output of APIC tag inspect (escaped and snipped)
+  def test_id3v2_to_inspect_hash
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      mp3.tag2.APIC =  "\x00testing.jpg\x00" * 20
+      escaped_str = "\\x00testing.jpg\\x00" * 20
+      snipped_str = escaped_str.unpack('a185').first + "<<<...snip...>>>"     
+      assert_equal(snipped_str, mp3.tag2.to_inspect_hash["APIC"])
+    end
+  end
+
+  def test_id3v2_get_pictures
+    img = "\x89PNG".force_encoding('BINARY') + 
+      random_string(120).force_encoding('BINARY')
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      mp3.tag2.add_picture(img, :description => 'example image.png')
+    end
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_equal(["01_example image.png", img], mp3.tag2.get_pictures[0])
+    end
+  end
+  
+  def test_id3v2_remove_pictures
+    jpg_data = "\xFF".force_encoding('BINARY') + 
+      random_string(123).force_encoding('BINARY')
+    Mp3Info.open(TEMP_FILE) do |mp|
+      mp.tag2.add_picture(jpg_data)
+    end
+    Mp3Info.open(TEMP_FILE) do |mp|
+      mp.tag2.remove_pictures
+      assert_equal([], mp.tag2.get_pictures)
+    end
+  end
+
   def test_id3v2_methods
     tag = { "TIT2" => "tit2", "TPE1" => "tpe1" }
     Mp3Info.open(TEMP_FILE) do |mp3|
