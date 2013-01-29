@@ -206,7 +206,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       mp3.tag2.add_picture(img, :description => 'example image.png')
     end
     Mp3Info.open(TEMP_FILE) do |mp3|
-      assert_equal(["01_example image.png", img], mp3.tag2.get_pictures[0])
+      assert_equal(["01_example image.png", img], mp3.tag2.pictures[0])
     end
   end
   
@@ -218,7 +218,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
     Mp3Info.open(TEMP_FILE) do |mp|
       mp.tag2.remove_pictures
-      assert_equal([], mp.tag2.get_pictures)
+      assert_equal([], mp.tag2.pictures)
     end
   end
 

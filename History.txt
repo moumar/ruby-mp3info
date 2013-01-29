@@ -1,7 +1,7 @@
 === 0.7.3 / 2013-01-28
 
 * allow higher level of reading and writing to APIC tag:
-* tag2.get_pictures, tag2.remove_pictures, tag2.add_picture
+* tag2.pictures, tag2.remove_pictures, tag2.add_picture
 * added "<<...snip...>>>" to shorten APIC tag when Hash.inspect called (not a shallow copy hash, deep copied hash so does not effect data) tag2.inspect
 
 === 0.7.2 / 2012-12-24

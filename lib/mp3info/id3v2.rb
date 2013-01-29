@@ -235,7 +235,8 @@ class ID3v2 < DelegateClass(Hash)
   end
 
   ### ID3V2::add_picture
-  ### Takes an image string as input and writes it with header
+  ### Takes an image string as input and writes it with header. 
+  ### Mime type is automatically guessed by default.
   ### It is possible but not necessary to include:
   ###  :pic_type => 0 - 14 (see http://id3.org/id3v2.3.0#Attached_picture)
   ###  :mime => 'gif' 
@@ -265,16 +266,15 @@ class ID3v2 < DelegateClass(Hash)
     self["APIC"] = header + data.force_encoding('BINARY')
   end
 
-  ### ID3V2::get_pictures 
   ### Returns an array of images:
   ###   [  ["01_.jpg", "Image Data in Binary String"],
   ###      ["02_.png", "Another Image in a String"]    ]
   ###
   ### e.g. to write all images:
-  ### mp3.tag2.get_pictures.each do |image|
+  ### mp3.tag2.pictures.each do |image|
   ###   File.open(img[0], 'wb'){|f| f.write img[1])
   ### end
-  def get_pictures
+  def pictures
     apic_images = [self["APIC"]].flatten.dup
     result = []
     apic_images.each_index do |index|
@@ -323,7 +323,7 @@ class ID3v2 < DelegateClass(Hash)
                                 Regexp::FIXEDENCODING)
          if (data =~ trailing_null_byte) < 10
            data.gsub!(trailing_null_byte, "\xff".force_encoding('BINARY'))
-        end
+         end
       end
       
       desc = "%02i_#{desc[0,25]}" % (index + 1)

@@ -1,6 +1,6 @@
 History.txt
 Manifest.txt
-README.txt
+README.md
 Rakefile
 lib/mp3info.rb
 lib/mp3info/extension_modules.rb

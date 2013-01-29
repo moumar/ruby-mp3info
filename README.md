@@ -18,57 +18,56 @@ ruby-mp3info read low-level informations and manipulate tags on mp3 files.
 ## Synopsis
 
 ```ruby
-  ### Read and display infos & tags
-  require "mp3info"
-  
-  # Read and display infos & tags
+    require "mp3info"
 
-  Mp3Info.open("myfile.mp3") do |mp3info|
-    puts mp3info
-  end
-  
-  # read/write tag1 and tag2 with Mp3Info#tag attribute
-  # when reading tag2 have priority over tag1
-  # when writing, each tag is written.
-  Mp3Info.open("myfile.mp3") do |mp3|
-    puts mp3.tag.title   
-    puts mp3.tag.artist   
-    puts mp3.tag.album
-    puts mp3.tag.tracknum
-    mp3.tag.title = "track title"
-    mp3.tag.artist = "artist name"
-  end
+    # Read and display infos & tags
 
-  # tags are written when calling Mp3Info#close or at the end of the #open block
-
-  ### access id3v2 tags
-
-  Mp3Info.open("myfile.mp3") do |mp3|
-    # you can access four letter v2 tags like this
-    puts mp3.tag2.TIT2
-    mp3.tag2.TIT2 = "new TIT2"
-    # or like that
-    mp3.tag2["TIT2"]
-    # at this time, only COMM tag is processed after reading and before writing
-    # according to ID3v2#options hash
-    mp3.tag2.options[:lang] = "FRE"
-    mp3.tag2.COMM = "my comment in french, correctly handled when reading and writing"
-  end
-
-  ### image manipulation
-
-  file = File.new('input_img','rb')
-  Mp3Info.open '1.mp3' do |m|
-     result = m.tag2.get_pictures # array of images :
-     result.each do |img| # [ ["img1_filename", "img1_data" ] ]
-        puts img[1].unpack('a128').first.inspect; gets
-        File.open(img[0], 'wb'){|f| f.write img[1] }
+    Mp3Info.open("myfile.mp3") do |mp3info|
+      puts mp3info
     end
-    m.tag2.remove_pictures # remove all images
-    m.tag2.add_picture(file.read) # optionally, you may include options for the header:
-    # options = { mime: 'gif', description: "description",
-    #             pic_type: 0 }
-  end
+    
+    # read/write tag1 and tag2 with Mp3Info#tag attribute
+    # when reading tag2 have priority over tag1
+    # when writing, each tag is written.
+
+    Mp3Info.open("myfile.mp3") do |mp3|
+      puts mp3.tag.title   
+      puts mp3.tag.artist   
+      puts mp3.tag.album
+      puts mp3.tag.tracknum
+      mp3.tag.title = "track title"
+      mp3.tag.artist = "artist name"
+    end
+
+    # tags are written when calling Mp3Info#close or at the end of the #open block
+
+    ### access id3v2 tags
+
+    Mp3Info.open("myfile.mp3") do |mp3|
+      # you can access four letter v2 tags like this
+      puts mp3.tag2.TIT2
+      mp3.tag2.TIT2 = "new TIT2"
+      # or like that
+      mp3.tag2["TIT2"]
+      # at this time, only COMM tag is processed after reading and before writing
+      # according to ID3v2#options hash
+      mp3.tag2.options[:lang] = "FRE"
+      mp3.tag2.COMM = "my comment in french, correctly handled when reading and writing"
+    end
+
+    ### image manipulation
+
+    file = File.new('input_img','rb')
+    Mp3Info.open '1.mp3' do |m|
+       pictures = m.tag2.get_pictures # array of images :
+       pictures.each do |description, data|
+          File.open(description, "wb") { |f| f.write data }
+      end
+      m.tag2.remove_pictures # remove all images
+      m.tag2.add_picture(file.read) # optionally, you may include options for the header:
+      # options = { mime: 'gif', description: "description",
+      #             pic_type: 0 }
+    end
 ```
 
 ## Requirements
