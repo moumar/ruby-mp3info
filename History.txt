@@ -1,4 +1,4 @@
-=== 0.7.3 / 2013-01-28
+=== 0.8 / 2013-01-28
 
 * allow higher level of reading and writing to APIC tag:
 * tag2.pictures, tag2.remove_pictures, tag2.add_picture
