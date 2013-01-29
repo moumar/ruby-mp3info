@@ -5,8 +5,8 @@
 
 require "fileutils"
 require "stringio"
-require "mp3info/extension_modules"
 require "mp3info/id3v2"
+require "mp3info/extension_modules"
 
 # ruby -d to display debugging infos
 
@@ -18,7 +18,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.7.2"
+  VERSION = "0.7.3"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -471,7 +471,7 @@ class Mp3Info
   def to_s
     s = "MPEG #{@mpeg_version} Layer #{@layer} #{@vbr ? "VBR" : "CBR"} #{@bitrate} Kbps #{@channel_mode} #{@samplerate} Hz length #{@length} sec. header #{@header.inspect} "
     s << "tag1: "+@tag1.to_hash.inspect+"\n" if hastag1?
-    s << "tag2: "+@tag2.to_hash.inspect+"\n" if hastag2?
+    s << "tag2: "+@tag2.to_inspect_hash.inspect+"\n" if hastag2?
     s
   end
 

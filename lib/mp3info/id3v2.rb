@@ -217,6 +217,136 @@ class ID3v2 < DelegateClass(Hash)
     end
   end
 
+  ### cuts out long tag values from hash for display on screen
+  def to_inspect_hash
+    result = Marshal.load(Marshal.dump(self.to_hash))
+    result.each do |k,v|
+      if v.is_a? Array
+        v.each_index do |i, item|
+          if (v[i].is_a? String and v[i].length > 128)
+            result[k][i] = pretty_header(v[i])
+          end
+        end
+      elsif v.is_a? String and v.length > 128
+        result[k] = pretty_header(v) # this method 'snips' long data
+      end
+    end
+    result
+  end
+
+  ### ID3V2::add_picture
+  ### Takes an image string as input and writes it with header
+  ### It is possible but not necessary to include:
+  ###  :pic_type => 0 - 14 (see http://id3.org/id3v2.3.0#Attached_picture)
+  ###  :mime => 'gif' 
+  ###  :description => "Image description"
+  def add_picture(data, opts = {})
+    options = { 
+                :pic_type => 0,
+                :mime => nil,
+                :description => "image"
+              }
+    options.update(opts)
+    jpg = Regexp.new( "^\xFF".force_encoding("BINARY"),
+                 Regexp::FIXEDENCODING )
+    png = Regexp.new( "^\x89PNG".force_encoding("BINARY"),
+                 Regexp::FIXEDENCODING )
+    gif = Regexp.new( "^\x89GIF".force_encoding("BINARY"),
+                 Regexp::FIXEDENCODING )
+
+    mime = options[:mime]
+    mime ||= "jpg" if data.match jpg
+    mime ||= "png" if data.match png
+    mime ||= "gif" if data.match gif
+    pic_type = options[:pic_type]
+    pic_type = ["%02i" % pic_type].pack('H*')
+    desc = "#{options[:description]}"
+    header = "\x00image/#{mime}\x00#{pic_type}#{desc}\x00"
+    self["APIC"] = header + data.force_encoding('BINARY')
+  end
+
+  ### ID3V2::get_pictures 
+  ### Returns an array of images:
+  ###   [  ["01_.jpg", "Image Data in Binary String"],
+  ###      ["02_.png", "Another Image in a String"]    ]
+  ###
+  ### e.g. to write all images:
+  ### mp3.tag2.get_pictures.each do |image|
+  ###   File.open(img[0], 'wb'){|f| f.write img[1])
+  ### end
+  def get_pictures
+    apic_images = [self["APIC"]].flatten.dup
+    result = []
+    apic_images.each_index do |index|
+      pic = apic_images[index]
+      next if !pic.is_a?(String) or pic == ""
+      pic.force_encoding 'BINARY' 
+      picture = []
+      jpg = Regexp.new("jpg|JPG|jpeg|JPEG".force_encoding("BINARY"),
+                   Regexp::FIXEDENCODING )
+      png = Regexp.new("png|PNG".force_encoding("BINARY"),
+                   Regexp::FIXEDENCODING )
+      header = pic.unpack('a120').first.force_encoding "BINARY"
+      mime_pos = 0
+      
+      # safest way to correctly extract jpg and png is finding mime
+      if header.match jpg
+        mime = "jpg"
+        mime_pos = header =~ jpg
+        start = Regexp.new("^\377".force_encoding("BINARY"),
+                         Regexp::FIXEDENCODING )
+      elsif header.match png
+        mime = "png"
+        mime_pos = header =~ png
+        start = Regexp.new("^\x89PNG".force_encoding("BINARY"),
+                         Regexp::FIXEDENCODING )
+      else
+        mime = "dat"
+      end
+
+      puts "analysing image: #{header.inspect}..." if $DEBUG
+      mim, pic_type, desc, data = pic[mime_pos, pic.length].unpack('Z*hZ*a*')
+
+      if mime != "dat" and (!data.match(start) or data.nil?)
+        real_start = pic =~ start
+        data = pic[real_start, pic.length]
+      end
+
+      if mime == "dat"
+        # if no jpg or png, extract data anyway e.g. gif
+        mime, desc, data = pic.unpack('h Z* h Z* a*').values_at(1,3,4)
+      end
+
+      if mime == "jpg"
+         # inspect jpg image header (first 10 chars) for "\xFF\x00" (expect "\xFF")
+         trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'), 
+                                Regexp::FIXEDENCODING)
+         if (data =~ trailing_null_byte) < 10
+           data.gsub!(trailing_null_byte, "\xff".force_encoding('BINARY'))
+        end
+      end
+      
+      desc = "%02i_#{desc[0,25]}" % (index + 1)
+      
+      filename = desc.match("#{mime}$") ? desc : "#{desc}.#{mime}"
+      filename.gsub!('/','')
+      
+      picture[0] = filename
+      picture[1] = data
+      result << picture
+    end
+    result
+  end
+
+  def inspect
+    self.to_inspect_hash
+  end
+  
+  def remove_pictures
+    self.APIC = ""
+    self.PIC = ""
+  end
+
   ### gets id3v2 tag information from io object (must support #seek() method)
   def from_io(io)
     @io = io
@@ -461,6 +591,14 @@ class ID3v2 < DelegateClass(Hash)
   def to_syncsafe(num)
     ( (num<<3) & 0x7f000000 )  + ( (num<<2) & 0x7f0000 ) + ( (num<<1) & 0x7f00 ) + ( num & 0x7f )
   end
+  
+  ### this is especially useful for printing out APIC data because
+  ### only the header of the APIC tag is of interest
+  ### The result also shows some bytes escaped for cleaner display
+  def pretty_header(str, chars=128)
+    "#{str.unpack("a#{chars}").first}<<<...snip...>>>".force_encoding('BINARY').inspect[1..-2]
+  end
+
 
 end
 
