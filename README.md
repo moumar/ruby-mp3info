@@ -59,7 +59,7 @@ end
 
 file = File.new('input_img','rb')
 Mp3Info.open '1.mp3' do |m|
-   pictures = m.tag2.get_pictures # array of images :
+   pictures = m.tag2.pictures # array of images :
    pictures.each do |description, data|
       File.open(description, "wb") { |f| f.write data }
   end
