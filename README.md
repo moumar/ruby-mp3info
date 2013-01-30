@@ -59,9 +59,10 @@ end
 
 file = File.new('input_img','rb')
 Mp3Info.open '1.mp3' do |m|
-   pictures = m.tag2.get_pictures # array of images :
+   pictures = m.tag2.pictures # array of images :
    pictures.each do |description, data|
-      File.open(description, "wb") { |f| f.write data }
+      # description ends with (.jpg / .png) for easy writing to file     
+      File.binwrite(description, data) 
   end
   m.tag2.remove_pictures # remove all images
   m.tag2.add_picture(file.read) # optionally, you may include options for the header:
