@@ -65,9 +65,16 @@ Mp3Info.open '1.mp3' do |m|
       File.binwrite(description, data) 
   end
   m.tag2.remove_pictures # remove all images
-  m.tag2.add_picture(file.read) # optionally, you may include options for the header:
-  # options = { mime: 'gif', description: "description",
+  
+  m.tag2.add_picture(file.read) # add a single image to APIC tag
+  # **optionally**, you may include options for the image tag to add_picture():
+  # options = { mime: 'jpeg|gif|png', description: "description",
   #             pic_type: 0 }
+  # There is no need to specify mime or options because the mime is guessed based on the input image
+  # Only one image is permitted in the mp3 for compatibility. add_picture() overwrites all previous images.
+  # Please note: 
+  # If supplying :mime option just supply the mime 'jpeg', 'gif' or 'png', the code adds the "image/.." for you!
+  # e.g. m.tag2.add_picture(file.read, mime: 'jpeg', pic_type: 3) gets a mime "image/jpeg"
 end
 ```
 
