@@ -593,9 +593,8 @@ class ID3v2 < DelegateClass(Hash)
   
   ### this is especially useful for printing out APIC data because
   ### only the header of the APIC tag is of interest
-  ### The result also shows some bytes escaped for cleaner display
   def pretty_header(str, chars=128)
-    "#{str.unpack("a#{chars}").first}<<<...snip...>>>".force_encoding('BINARY').inspect[1..-2]
+    "#{str.unpack("a#{chars}").first}<<<...snip...>>>".inspect[1..-2]
   end
 
 
