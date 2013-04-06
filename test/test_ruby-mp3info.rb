@@ -64,7 +64,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       f.write(str)
     end
     assert_raises(Mp3InfoError) do
-      mp3 = Mp3Info.new(TEMP_FILE)
+      Mp3Info.new(TEMP_FILE)
     end
   end
 
@@ -142,7 +142,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_removetag2
-    w = write_tag2_to_temp_file("TIT2" => "sdfqdsf")
+    write_tag2_to_temp_file("TIT2" => "sdfqdsf")
 
     assert( Mp3Info.hastag2?(TEMP_FILE) )
     Mp3Info.removetag2(TEMP_FILE)
@@ -155,7 +155,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
     assert(Mp3Info.hastag1?(TEMP_FILE))
 
-    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
+    write_tag2_to_temp_file(DUMMY_TAG2)
     assert(Mp3Info.hastag2?(TEMP_FILE))
   end
 
@@ -469,7 +469,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     io = load_string_io
     assert(Mp3Info.hastag1?(io))
 
-    written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
+    write_tag2_to_temp_file(DUMMY_TAG2)
     io = load_string_io
     assert(Mp3Info.hastag2?(io))
   end

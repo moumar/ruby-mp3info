@@ -304,7 +304,7 @@ class ID3v2 < DelegateClass(Hash)
       end
 
       puts "analysing image: #{header.inspect}..." if $DEBUG
-      mim, pic_type, desc, data = pic[mime_pos, pic.length].unpack('Z*hZ*a*')
+      _, _, desc, data = pic[mime_pos, pic.length].unpack('Z*hZ*a*')
 
       if mime != "dat" and (!data.match(start) or data.nil?)
         real_start = pic =~ start
