@@ -203,9 +203,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   def test_id3v2_to_inspect_hash
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.APIC =  "\x00testing.jpg\x00" * 20
-      escaped_str = "\\0testing.jpg\\0" * 20
-      expected = "\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jpg\\0\\0testing.jp<<<...snip...>>>"
-      assert_equal(expected, mp3.tag2.to_inspect_hash["APIC"])
+      assert_match(/^(\\x00testing.jpg\\x00)+.*<<<\.\.\.snip\.\.\.>>>$/, mp3.tag2.to_inspect_hash["APIC"])
     end
   end
 
