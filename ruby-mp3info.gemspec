@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{ruby-mp3info}
-  s.version = "0.7.3"
+  s.version = "0.8.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Guillaume Pierronnet"]
@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.description = %q{ruby-mp3info read low-level informations and manipulate tags on mp3 files.}
   s.email = ["guillaume.pierronnet@gmail.com"]
   s.extra_rdoc_files = ["History.txt", "Manifest.txt", "README.txt"]
-  s.files = ["History.txt", "Manifest.txt", "README.txt", "Rakefile", "lib/mp3info.rb", "lib/mp3info/extension_modules.rb", "lib/mp3info/id3v2.rb", "test/test_ruby-mp3info.rb", ".gemtest"]
+  s.files = ["History.txt", "Manifest.txt", "README.txt", "Rakefile", "lib/mp3info.rb", "lib/mp3info/extension_modules.rb", "lib/mp3info/id3v2.rb", "test/test_ruby-mp3info.rb"]
   s.homepage = %q{http://github.com/moumar/ruby-mp3info}
   s.rdoc_options = ["--main", "README.txt"]
   s.require_paths = ["lib"]
