@@ -442,7 +442,9 @@ class Mp3Info
   #        @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
   #        @io.seek(tag2_len, IO::SEEK_CUR)
   #      end
-        tempfile_name = @filename_or_io + ".tmp"
+        filename_splitted = File.split(@filename_or_io) 
+        filename_splitted[-1] = ".#{filename_splitted[-1]}.tmp"
+        tempfile_name = File.join(filename_splitted)
         File.open(tempfile_name, "wb") do |tempfile|
           unless @tag2.empty?
             tempfile.write(@tag2.to_bin)
