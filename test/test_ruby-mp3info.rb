@@ -526,13 +526,22 @@ class Mp3InfoTest < Test::Unit::TestCase
     assert_equal("JStereo", mp3.channel_mode)
     assert_equal(44100, mp3.samplerate)
     assert_equal(0.1305625, mp3.length)
-    assert_equal({:original => true, 
-                  :error_protection => false, 
-                  :padding => false, 
-                  :emphasis => 0, 
-                  :private => true, 
-                  :mode_extension => 2, 
-                  :copyright => false}, mp3.header)
+    assert_equal({
+      :layer=>3,
+      :bitrate=>128,
+      :samplerate=>44100,
+      :mpeg_version=>1,
+      :padding=>false,
+      :size=>417,
+      :error_protection=>false,
+      :private=>true,
+      :mode_extension=>2,
+      :copyright=>false,
+      :original=>true,
+      :emphasis=>0,
+      :channel_num=>1,
+      :channel_mode=>"JStereo"
+      }, mp3.header)
   end
 
   def load_string_io(filename = TEMP_FILE)

@@ -17,7 +17,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.8.1"
+  VERSION = "0.8.2"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -484,9 +484,18 @@ class Mp3Info
     @io.seek(@first_frame_pos, File::SEEK_SET)
     loop do
       head = @io.read(4).unpack("N").first
-      frame = Mp3Info.get_frames_infos(head)
-      @io.seek(frame[:size] -4, File::SEEK_CUR)
+      begin
+        frame = Mp3Info.get_frames_infos(head)
+      rescue Mp3InfoInternalError
+        begin
+          frame = find_next_frame
+        rescue Mp3InfoError
+          break
+        end
+      end
+       
       yield frame
+      @io.seek(frame[:size] -4, File::SEEK_CUR)
       #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @io.pos #{@io.pos}"
       break if @io.eof?
     end
@@ -518,12 +527,22 @@ private
       size = 144 * (bitrate*1000.0 / samplerate) + (padding ? 1 : 0)
     end
     size = size.to_i
+    channel_num = Mp3Info.bits(head, 7,6)
     { :layer => layer,
       :bitrate => bitrate,
       :samplerate => samplerate,
       :mpeg_version => mpeg_version,
       :padding => padding,
-      :size => size }
+      :size => size,
+      :error_protection => head[16] == 0,
+      :private => head[8] == 0,
+      :mode_extension => Mp3Info.bits(head, 5, 4),
+      :copyright => head[3] == 1,
+      :original => head[2] == 1,
+      :emphasis => Mp3Info.bits(head, 1, 0),
+      :channel_num => channel_num,
+      :channel_mode => CHANNEL_MODE[channel_num]
+    }
   end
 
   ### parses the id3 tags of the currently open @io
@@ -596,8 +615,7 @@ private
         raise(Mp3InfoError, "end of file reached") if @io.eof?
         head = 0xff000000 + (data.getbyte(0) << 16) + (data.getbyte(1) << 8) + data.getbyte(2)
         begin
-          Mp3Info.get_frames_infos(head)
-          return head
+          return Mp3Info.get_frames_infos(head)
         rescue Mp3InfoInternalError
           @io.seek(-3, IO::SEEK_CUR)
         end
@@ -629,23 +647,13 @@ private
     
     found = false
 
-    head = nil
     5.times do
-      head = find_next_frame() 
+      @header = find_next_frame() 
       @first_frame_pos = @io.pos - 4
-      current_frame = Mp3Info.get_frames_infos(head)
-      @mpeg_version = current_frame[:mpeg_version]
-      @layer = current_frame[:layer]
-      @header[:error_protection] = head[16] == 0 ? true : false
-      @bitrate = current_frame[:bitrate]
-      @samplerate = current_frame[:samplerate]
-      @header[:padding] = current_frame[:padding]
-      @header[:private] = head[8] == 0 ? true : false
-      @channel_mode = CHANNEL_MODE[@channel_num = Mp3Info.bits(head, 7,6)]
-      @header[:mode_extension] = Mp3Info.bits(head, 5,4)
-      @header[:copyright] = (head[3] == 1 ? true : false)
-      @header[:original] = (head[2] == 1 ? true : false)
-      @header[:emphasis] = Mp3Info.bits(head, 1,0)
+      [ :mpeg_version, :layer, :channel_mode,
+        :channel_num, :bitrate, :samplerate ].each do |var_name|
+        instance_variable_set("@#{var_name}", @header[var_name])
+      end
       @vbr = false
       found = true
       break
@@ -683,13 +691,10 @@ private
       stream_size = @io_size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
       @length = ((stream_size << 3)/1000.0)/@bitrate
       # read the first 100 frames and decide if the mp3 is vbr and needs full scan
-      begin
-        bitrate = frame_scan(100).first
-        if @bitrate != bitrate
-          @vbr = true
-          @bitrate, @length = frame_scan
-        end
-      rescue Mp3InfoInternalError
+      average_bitrate = frame_scan(100).first
+      if @bitrate != average_bitrate
+        @vbr = true
+        @bitrate, @length = frame_scan
       end
     end
   end
