@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{ruby-mp3info}
-  s.version = "0.8.1"
+  s.version = "0.8.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Guillaume Pierronnet"]
@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.rubygems_version = %q{1.6.2}
   s.summary = %q{ruby-mp3info read low-level informations and manipulate tags on mp3 files.}
   s.test_files = ["test/test_ruby-mp3info.rb"]
+  s.license = 'GPL-3.0'
 
   if s.respond_to? :specification_version then
     s.specification_version = 3

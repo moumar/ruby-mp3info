@@ -96,7 +96,7 @@ This task will install any missing dependencies, run the tests/specs, and genera
 
 ## License
 
-ruby
+GPL-3.0
 
 ## TODO:
 
