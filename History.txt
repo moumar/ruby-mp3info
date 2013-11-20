@@ -1,4 +1,9 @@
-=== 0.8.1 / 2013-10-280
+=== 0.8.2 / 2013-11-20
+
+* better parsing of corrupted mp3 (more robust frame scanning)
+* upgraded license to GPL 3 (previous license (ruby) is compatible)
+
+=== 0.8.1 / 2013-10-28
 
 * test fixes
 * added dot to temp filename
