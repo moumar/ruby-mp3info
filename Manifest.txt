@@ -6,3 +6,4 @@ lib/mp3info.rb
 lib/mp3info/extension_modules.rb
 lib/mp3info/id3v2.rb
 test/test_ruby-mp3info.rb
+test/fixtures.yml
