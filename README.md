@@ -2,6 +2,8 @@
 
 * http://github.com/moumar/ruby-mp3info
 
+[![Build Status](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)
+
 ## Description
 
 ruby-mp3info read low-level informations and manipulate tags on mp3 files.
