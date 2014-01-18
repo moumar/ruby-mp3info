@@ -165,6 +165,9 @@ class ID3v2 < DelegateClass(Hash)
   TEXT_ENCODINGS = ["iso-8859-1", "utf-16", "utf-16be", "utf-8"]
 
   include Mp3Info::HashKeys
+
+  # In Ruby 2.1.0 (and possibly others), DelegateClass breaks Kernel methods.
+  include Kernel
   
   # this is the position in the file where the tag really ends
   attr_reader :io_position
@@ -596,7 +599,6 @@ class ID3v2 < DelegateClass(Hash)
   def pretty_header(str, chars=128)
     "#{str.unpack("a#{chars}").first}<<<...snip...>>>".inspect[1..-2]
   end
-
 
 end
 
