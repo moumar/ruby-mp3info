@@ -347,7 +347,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       mp3.tag.artist = "toto"
       mp3.tag.comments = "comments"
       mp3.flush
-      expected_tag = { 
+      expected_tag = {
         "artist" => "toto",
         "genre_s" => "Hip Hop/Rap",
         "title" => "Intro",
@@ -492,6 +492,23 @@ class Mp3InfoTest < Test::Unit::TestCase
     io = open(TEMP_FILE, "r")
     Mp3Info.open(io) do |mp3| 
       mp3.tag.artist = "test_artist"
+    end
+  end
+
+  def test_parsing_unsynced_file
+    load_fixture_to_temp_file("vbr")
+    File.open("/tmp/test.mp3", "w") do |tf|
+      tf.write File.read(TEMP_FILE, 96512)
+      tf.write "\0\0"
+      tf.write File.read(TEMP_FILE, nil, 96512)
+    end
+
+    Mp3Info.open("/tmp/test.mp3") do |info|
+      assert_nothing_raised do
+        info.each_frame { |frame| frame }
+      end
+      assert(info.vbr)
+      assert_in_delta(174.210612, info.length, 0.000001)
     end
   end
 

@@ -17,22 +17,22 @@ end
 
 class Mp3Info
 
-  VERSION = "0.8.3"
+  VERSION = "0.8.4"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
-    1 => 
+    1 =>
     [
       [32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448],
       [32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384],
       [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320] ],
-    2 => 
+    2 =>
     [
       [32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256],
       [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
       [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]
     ],
-    2.5 => 
+    2.5 =>
     [
       [32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256],
       [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
@@ -253,49 +253,43 @@ class Mp3Info
     @tag1 = @tag = @tag1_orig = @tag_orig = {}
     @tag1.extend(HashKeys)
     @tag2 = ID3v2.new(@id3v2_options)
-    
-    begin
-      if @tag_parsing_enabled
-        parse_tags
-        @tag1_orig = @tag1.dup
 
-        if hastag1?
-          @tag = @tag1.dup
-        end
+    if @tag_parsing_enabled
+      parse_tags
+      @tag1_orig = @tag1.dup
 
-        if hastag2?
-          @tag = {}
-          # creation of a sort of "universal" tag, regardless of the tag version
-          tag2_mapping = @tag2.version =~ /^2\.2/ ? TAG_MAPPING_2_2 : TAG_MAPPING_2_3
-          tag2_mapping.each do |key, tag2_name| 
-            tag_value = (@tag2[tag2_name].is_a?(Array) ? @tag2[tag2_name].first : @tag2[tag2_name])
-            next unless tag_value
-            @tag[key] = tag_value.is_a?(Array) ? tag_value.first : tag_value
+      if hastag1?
+        @tag = @tag1.dup
+      end
 
-            if %w{year tracknum}.include?(key)
-              @tag[key] = tag_value.to_i
-            end
-            # this is a special case with id3v2.2, which uses
-            # old fashionned id3v1 genres
-            if tag2_name == "TCO" && tag_value =~ /^\((\d+)\)$/
-              @tag["genre_s"] = GENRES[$1.to_i]
-            end
+      if hastag2?
+        @tag = {}
+        # creation of a sort of "universal" tag, regardless of the tag version
+        tag2_mapping = @tag2.version =~ /^2\.2/ ? TAG_MAPPING_2_2 : TAG_MAPPING_2_3
+        tag2_mapping.each do |key, tag2_name| 
+          tag_value = (@tag2[tag2_name].is_a?(Array) ? @tag2[tag2_name].first : @tag2[tag2_name])
+          next unless tag_value
+          @tag[key] = tag_value.is_a?(Array) ? tag_value.first : tag_value
+
+          if %w{year tracknum}.include?(key)
+            @tag[key] = tag_value.to_i
+          end
+          # this is a special case with id3v2.2, which uses
+          # old fashionned id3v1 genres
+          if tag2_name == "TCO" && tag_value =~ /^\((\d+)\)$/
+            @tag["genre_s"] = GENRES[$1.to_i]
           end
         end
-
-        @tag.extend(HashKeys)
-        @tag_orig = @tag.dup
       end
 
-      if @mp3_parsing_enabled
-        parse_mp3
-      end
-
-    ensure
-      if @io_is_a_file
-        @io.close
-      end
+      @tag.extend(HashKeys)
+      @tag_orig = @tag.dup
     end
+
+    if @mp3_parsing_enabled
+      parse_mp3
+    end
+
   end
 
   # "block version" of Mp3Info::new()
@@ -365,7 +359,7 @@ class Mp3Info
   end
 
   # return the length in seconds of one frame
-  def frame_length
+  def get_frame_length
     SAMPLES_PER_FRAME[@layer][@mpeg_version] / Float(@samplerate)
   end
 
@@ -483,17 +477,7 @@ class Mp3Info
   def each_frame
     @io.seek(@first_frame_pos, File::SEEK_SET)
     loop do
-      head = @io.read(4).unpack("N").first
-      begin
-        frame = Mp3Info.get_frames_infos(head)
-      rescue Mp3InfoInternalError
-        begin
-          frame = find_next_frame
-        rescue Mp3InfoError
-          break
-        end
-      end
-       
+      frame = find_next_frame
       yield frame
       @io.seek(frame[:size] -4, File::SEEK_CUR)
       #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @io.pos #{@io.pos}"
@@ -502,7 +486,7 @@ class Mp3Info
   end
 
 private
-  
+
   def Mp3Info.get_frames_infos(head)
     # be sure we are in sync
     if ((head & 0xffe00000) != 0xffe00000)    || # 11 bit MPEG frame sync
@@ -510,11 +494,11 @@ private
        ((head & 0x0000f000) == 0x0000f000)    || #  4 bit bitrate
        ((head & 0x0000f000) == 0x00000000)    || #        free format bitstream
        ((head & 0x00000c00) == 0x00000c00)    || #  2 bit frequency
-       ((head & 0xffff0000) == 0xfffe0000) 
-      raise Mp3InfoInternalError 
+       ((head & 0xffff0000) == 0xfffe0000)
+      raise Mp3InfoInternalError, "unsynced frame"
     end
     mpeg_version = [2.5, nil, 2, 1][bits(head, 20,19)]
-    
+
     layer = LAYER[bits(head, 18,17)]
     raise Mp3InfoInternalError if layer == nil || mpeg_version == nil
 
@@ -522,12 +506,12 @@ private
     samplerate = SAMPLERATE[mpeg_version][bits(head, 11,10)]
     padding = (head[9] == 1)
     if layer == 1
-      size = (12 * bitrate*1000.0 / samplerate + (padding ? 1 : 0))*4 
+      size = (12 * bitrate*1000.0 / samplerate + (padding ? 1 : 0))*4
     else # layer 2 and 3
       size = 144 * (bitrate*1000.0 / samplerate) + (padding ? 1 : 0)
     end
     size = size.to_i
-    channel_num = Mp3Info.bits(head, 7,6)
+    channel_num = Mp3Info.bits(head, 7, 6)
     { :layer => layer,
       :bitrate => bitrate,
       :samplerate => samplerate,
@@ -553,26 +537,26 @@ private
     @io.seek(0)
     f3 = @io.read(3)
     # v1 tag at beginning
-    if f3 == "TAG"  
-      gettag1 
+    if f3 == "TAG"
+      gettag1
       @tag1_parsed = true
     end
 
     @tag2.from_io(@io) if f3 == "ID3"  # v2 tag at beginning
-      
+
     unless @tag1_parsed         # v1 tag at end
       # this preserves the file pos if tag2 found, since gettag2 leaves
       # the file at the best guess as to the first MPEG frame
       pos = (@tag2.io_position || 0)
       # seek to where id3v1 tag should be
-      @io.seek(-TAG1_SIZE, IO::SEEK_END) 
+      @io.seek(-TAG1_SIZE, IO::SEEK_END)
       if @io.read(3) == "TAG"
         gettag1
       end
       @io.seek(pos)
     end
   end
-  
+
   ### gets id3v1 tag information from @io
   ### assumes @io is pointing to char after "TAG" id
   def gettag1
@@ -635,20 +619,20 @@ private
       frame_count += 1
       break if frame_limit && (frame_count >= frame_limit)
     end
-    
+
     average_bitrate = bitrate_sum/frame_count.to_f
-    length = (frame_count-1) * frame_length
+    length = frame_count * get_frame_length
     [average_bitrate, length]
   end
 
   def parse_mp3
     ### extracts MPEG info from MPEG header and stores it in the hash @mpeg
     ###  head (fixnum) = valid 4 byte MPEG header
-    
+
     found = false
 
     5.times do
-      @header = find_next_frame() 
+      @header = find_next_frame()
       @first_frame_pos = @io.pos - 4
       [ :mpeg_version, :layer, :channel_mode,
         :channel_num, :bitrate, :samplerate ].each do |var_name|
@@ -661,12 +645,12 @@ private
 
     raise(Mp3InfoError, "Cannot find good frame") unless found
 
-    seek = @mpeg_version == 1 ? 
-      (@channel_num == 3 ? 17 : 32) :       
+    seek = @mpeg_version == 1 ?
+      (@channel_num == 3 ? 17 : 32) :
       (@channel_num == 3 ?  9 : 17)
 
     @io.seek(seek, IO::SEEK_CUR)
-    
+
     vbr_head = @io.read(4)
     if vbr_head == "Xing"
       puts "Xing header (VBR) detected" if $DEBUG
@@ -680,21 +664,23 @@ private
       @io.seek(100, IO::SEEK_CUR) if flags[0] == 1
       #@vbr_quality = @io.get32bits if flags[3] == 1
 
-      samples_per_frame = SAMPLES_PER_FRAME[@layer][@mpeg_version] 
-      @length = frame_count * samples_per_frame / Float(@samplerate)
+      @length = frame_count * get_frame_length
 
       @bitrate = (((stream_size/frame_count)*@samplerate)/144) / 1024
       @vbr = true
     else
       # for cbr, calculate duration with the given bitrate
-      
+
       stream_size = @io_size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
       @length = ((stream_size << 3)/1000.0)/@bitrate
       # read the first 100 frames and decide if the mp3 is vbr and needs full scan
-      average_bitrate = frame_scan(100).first
-      if @bitrate != average_bitrate
-        @vbr = true
-        @bitrate, @length = frame_scan
+      begin
+        average_bitrate, _ = frame_scan(100)
+        if @bitrate != average_bitrate
+          @vbr = true
+          @bitrate, @length = frame_scan
+        end
+      rescue Mp3InfoError
       end
     end
   end
