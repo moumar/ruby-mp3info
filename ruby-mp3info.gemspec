@@ -9,10 +9,10 @@ Gem::Specification.new do |s|
   s.date = %q{2012-03-02}
   s.description = %q{ruby-mp3info read low-level informations and manipulate tags on mp3 files.}
   s.email = ["guillaume.pierronnet@gmail.com"]
-  s.extra_rdoc_files = ["History.txt", "Manifest.txt", "README.txt"]
-  s.files = ["History.txt", "Manifest.txt", "README.txt", "Rakefile", "lib/mp3info.rb", "lib/mp3info/extension_modules.rb", "lib/mp3info/id3v2.rb", "test/test_ruby-mp3info.rb"]
+  s.extra_rdoc_files = ["History.txt", "Manifest.txt", "README.md"]
+  s.files = ["History.txt", "Manifest.txt", "README.md", "Rakefile", "lib/mp3info.rb", "lib/mp3info/extension_modules.rb", "lib/mp3info/id3v2.rb", "test/test_ruby-mp3info.rb"]
   s.homepage = %q{http://github.com/moumar/ruby-mp3info}
-  s.rdoc_options = ["--main", "README.txt"]
+  s.rdoc_options = ["--main", "README.md"]
   s.require_paths = ["lib"]
   s.rubyforge_project = %q{ruby-mp3info}
   s.rubygems_version = %q{1.6.2}
