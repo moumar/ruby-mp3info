@@ -23,7 +23,8 @@ class Mp3InfoTest < Test::Unit::TestCase
     "TPE1" => "artist",
     "TALB" => "album",
     "TYER" => "year",
-    "TRCK" => "tracknum"
+    "TRCK" => "tracknum",
+    "USLT" => "lyrics"
   }
 
   DUMMY_TAG1 = {
