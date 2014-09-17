@@ -345,8 +345,8 @@ class ID3v2 < DelegateClass(Hash)
   end
   
   def remove_pictures
-    self.APIC = ""
-    self.PIC = ""
+    self["APIC"] = ""
+    self["PIC"]  = ""
   end
 
   ### gets id3v2 tag information from io object (must support #seek() method)
