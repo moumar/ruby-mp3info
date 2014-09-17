@@ -2,7 +2,7 @@
 
 * http://github.com/moumar/ruby-mp3info
 
-[![Build Status](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)
+[![Build Status](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)](https://travis-ci.org/moumar/ruby-mp3info)
 
 ## Description
 
@@ -10,7 +10,7 @@ ruby-mp3info read low-level informations and manipulate tags on mp3 files.
 
 ## Features/Problems
 
-* Written in pure ruby 
+* Written in pure ruby
 * Read low-level informations like bitrate, length, samplerate, etc...
 * Read, write, remove id3v1 and id3v2 tags
 * Correctly read VBR files (with or without Xing header)
@@ -33,8 +33,8 @@ end
 # when writing, each tag is written.
 
 Mp3Info.open("myfile.mp3") do |mp3|
-  puts mp3.tag.title   
-  puts mp3.tag.artist   
+  puts mp3.tag.title
+  puts mp3.tag.artist
   puts mp3.tag.album
   puts mp3.tag.tracknum
   mp3.tag.title = "track title"
@@ -63,18 +63,18 @@ file = File.new('input_img','rb')
 Mp3Info.open '1.mp3' do |m|
    pictures = m.tag2.pictures # array of images :
    pictures.each do |description, data|
-      # description ends with (.jpg / .png) for easy writing to file     
-      File.binwrite(description, data) 
+      # description ends with (.jpg / .png) for easy writing to file
+      File.binwrite(description, data)
   end
   m.tag2.remove_pictures # remove all images
-  
+
   m.tag2.add_picture(file.read) # add a single image to APIC tag
   # **optionally**, you may include options for the image tag to add_picture():
   # options = { mime: 'jpeg|gif|png', description: "description",
   #             pic_type: 0 }
   # There is no need to specify mime or options because the mime is guessed based on the input image
   # Only one image is permitted in the mp3 for compatibility. add_picture() overwrites all previous images.
-  # Please note: 
+  # Please note:
   # If supplying :mime option just supply the mime 'jpeg', 'gif' or 'png', the code adds the "image/.." for you!
   # e.g. m.tag2.add_picture(file.read, mime: 'jpeg', pic_type: 3) gets a mime "image/jpeg"
 end

@@ -345,8 +345,8 @@ class ID3v2 < DelegateClass(Hash)
   end
   
   def remove_pictures
-    self.APIC = ""
-    self.PIC = ""
+    self["APIC"] = ""
+    self["PIC"]  = ""
   end
 
   ### gets id3v2 tag information from io object (must support #seek() method)
@@ -430,12 +430,12 @@ class ID3v2 < DelegateClass(Hash)
     puts "encode_tag(#{name.inspect}, #{value.inspect})" if $DEBUG
     name = name.to_s
 
-    if name =~ /^(COM|T)/
+    if name =~ /^(COM|T|USLT)/
       transcoded_value = Mp3Info::EncodingHelper.convert_to(value, "utf-8", "utf-16")
     end
     case name
-      when "COMM"
-        puts "encode COMM: lang: #{@options[:lang]}, value #{transcoded_value.inspect}" if $DEBUG
+      when "COMM", "USLT"
+        #puts "encode COMM: lang: #{@options[:lang]}, value #{transcoded_value.inspect}" if $DEBUG
 	s = [ 1, @options[:lang], "\xFE\xFF\x00\x00", transcoded_value].pack("ca3a*a*")
 	return s
       when /^T/
@@ -451,8 +451,8 @@ class ID3v2 < DelegateClass(Hash)
   ### Read a tag from file and perform UNICODE translation if needed
   def decode_tag(name, raw_value)
     puts("decode_tag(#{name.inspect}, #{raw_value.inspect})") if $DEBUG
-    if name =~ /^(T|COM)/
-      if name =~ /^COM/
+    if name =~ /^(T|COM|USLT)/
+      if name =~ /^(COM|USLT)/
         #FIXME improve this
         encoding_index, lang, raw_tag = raw_value.unpack("ca3a*")
         if encoding_index == 1

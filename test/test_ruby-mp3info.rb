@@ -2,8 +2,9 @@
 # encoding: utf-8
 
 $:.unshift("lib/")
+$:.unshift("test")
 
-require "test/unit"
+require "helper"
 require "mp3info"
 require "fileutils"
 require "tempfile"
@@ -12,23 +13,23 @@ require "yaml"
 
 GOT_ID3V2 = system("which id3v2 > /dev/null")
 
-class Mp3InfoTest < Test::Unit::TestCase
-
+class Mp3InfoTest < TestCase
   TEMP_FILE = File.join(File.dirname(__FILE__), "test_mp3info.mp3")
 
   DUMMY_TAG2 = {
     "COMM" => "comments",
-    #"TCON" => "genre_s" 
+    #"TCON" => "genre_s"
     "TIT2" => "title",
     "TPE1" => "artist",
     "TALB" => "album",
     "TYER" => "year",
-    "TRCK" => "tracknum"
+    "TRCK" => "tracknum",
+    "USLT" => "lyrics"
   }
 
   DUMMY_TAG1 = {
     "title"    => "toto",
-    "artist"   => "artist 123", 
+    "artist"   => "artist 123",
     "album"    => "ALBUMM",
     "year"     => 1934,
     "tracknum" => 14,
@@ -69,17 +70,15 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_is_an_mp3
-    assert_nothing_raised do
-      Mp3Info.new(TEMP_FILE).close
-    end
+    Mp3Info.new(TEMP_FILE).close
   end
-  
+
   def test_detected_info
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_mp3_info_are_ok(mp3)
     end
   end
-  
+
   def test_vbr_mp3_length
     load_fixture_to_temp_file("vbr")
 
@@ -115,7 +114,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     }
     id3_test(tag, valid_tag)
   end
-  
+
   def test_valid_tag1_0
     tag = [ "title", "artist", "album", "1921", "comments", 0].pack('A30A30A30A4A30C')
     valid_tag = {
@@ -150,7 +149,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_hastags
-    Mp3Info.open(TEMP_FILE) do |info| 
+    Mp3Info.open(TEMP_FILE) do |info|
       info.tag1 = @tag
     end
     assert(Mp3Info.hastag1?(TEMP_FILE))
@@ -160,10 +159,10 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_universal_tag
-    2.times do 
+    2.times do
       tag = {"title" => "title"}
       Mp3Info.open(TEMP_FILE) do |mp3|
-	tag.each { |k,v| mp3.tag[k] = v }
+        tag.each { |k,v| mp3.tag[k] = v }
       end
       w = Mp3Info.open(TEMP_FILE) { |m| m.tag }
       assert_equal(tag, w)
@@ -181,7 +180,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     w.delete("genre")
     w.delete("genre_s")
     assert_equal(tag, w)
-#    id3v2_prog_test(tag, w)
+    #    id3v2_prog_test(tag, w)
   end
 
   def test_id3v2_version
@@ -198,17 +197,17 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
   end
 =end
- 
+
   # test for good output of APIC tag inspect (escaped and snipped)
   def test_id3v2_to_inspect_hash
     Mp3Info.open(TEMP_FILE) do |mp3|
-      mp3.tag2.APIC =  "\x00testing.jpg\x00" * 20
+      mp3.tag2["APIC"] =  "\x00testing.jpg\x00" * 20
       assert_match(/^((\\x00|\\u0000)testing.jpg(\\x00|\\u0000))+.*<<<\.\.\.snip\.\.\.>>>$/, mp3.tag2.to_inspect_hash["APIC"])
     end
   end
 
   def test_id3v2_get_pictures
-    img = "\x89PNG".force_encoding('BINARY') + 
+    img = "\x89PNG".force_encoding('BINARY') +
       random_string(120).force_encoding('BINARY')
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.add_picture(img, :description => 'example image.png')
@@ -217,9 +216,9 @@ class Mp3InfoTest < Test::Unit::TestCase
       assert_equal(["01_example image.png", img], mp3.tag2.pictures[0])
     end
   end
-  
+
   def test_id3v2_remove_pictures
-    jpg_data = "\xFF".force_encoding('BINARY') + 
+    jpg_data = "\xFF".force_encoding('BINARY') +
       random_string(123).force_encoding('BINARY')
     Mp3Info.open(TEMP_FILE) do |mp|
       mp.tag2.add_picture(jpg_data)
@@ -234,15 +233,15 @@ class Mp3InfoTest < Test::Unit::TestCase
     tag = { "TIT2" => "tit2", "TPE1" => "tpe1" }
     Mp3Info.open(TEMP_FILE) do |mp3|
       tag.each do |k, v|
-        mp3.tag2.send("#{k}=".to_sym, v)
+        mp3.tag2.tap { |h| h[k.to_s] = v }
       end
-      assert_equal(tag, mp3.tag2)
+      assert_equal tag, mp3.tag2.to_hash
     end
   end
 
   def test_id3v2_basic
     written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
-    assert_equal(DUMMY_TAG2, written_tag)
+    assert_equal(DUMMY_TAG2, written_tag.to_hash)
     id3v2_prog_test(DUMMY_TAG2, written_tag)
   end
 
@@ -253,22 +252,22 @@ class Mp3InfoTest < Test::Unit::TestCase
     id3v2_output = {}
 =begin
     id3v2 tag info for test/test_mp3info.mp3:
-      COMM (Comments): (~)[ENG]: 
+      COMM (Comments): (~)[ENG]:
       test/test_mp3info.mp3: No ID3v1 tag
 =end
     raw_output = `id3v2 -l #{TEMP_FILE}`
     raw_output.split(/\n/).each do |line|
       if line =~ /^id3v2 tag info/
-        start = true 
-	next    
+        start = true
+        next
       end
       next unless start
       if match = /^(.{4}) \(.+\): (.+)$/.match(line)
         k, v = match[1, 2]
         case k
           #COMM (Comments): ()[spa]: fmg
-          when "COMM"
-            v.sub!(/\(\)\[.{3}\]: (.+)/, '\1')
+        when "COMM"
+          v.sub!(/\(\)\[.{3}\]: (.+)/, '\1')
         end
         id3v2_output[k] = v
       end
@@ -279,18 +278,17 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   def test_id3v2_complex
     tag = {}
-    #ID3v2::TAGS.keys.each do |k|
     ["PRIV", "APIC"].each do |k|
       tag[k] = random_string(50)
     end
 
     got_tag = write_tag2_to_temp_file(tag)
-    assert_equal(tag, got_tag)
+    assert_equal(tag, got_tag.to_hash)
   end
 
   def test_id3v2_bigtag
     tag = {"APIC" => random_string(1024) }
-    assert_equal(tag, write_tag2_to_temp_file(tag))
+    assert_equal(tag, write_tag2_to_temp_file(tag).to_hash)
   end
 
   def test_leading_char_gets_chopped
@@ -312,7 +310,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_equal "2.2.0", mp3.tag2.version
-      expected_tag = { 
+      expected_tag = {
         "TCO" => "Hip Hop/Rap",
         "TP1" => "Grems Aka Supermicro",
         "TT2" => "Intro",
@@ -324,9 +322,9 @@ class Mp3InfoTest < Test::Unit::TestCase
       tag = mp3.tag2.dup
       assert_equal 4, tag["COM"].size
       tag.delete("COM")
-      assert_equal expected_tag, tag
+      assert_equal expected_tag, tag.to_hash
 
-      expected_tag = { 
+      expected_tag = {
         "genre_s"       => "Hip Hop/Rap",
         "title"         => "Intro",
         #"comments"      => "\000engiTunPGAP\0000\000\000",
@@ -336,7 +334,7 @@ class Mp3InfoTest < Test::Unit::TestCase
         "artist"        => "Grems Aka Supermicro",
         "tracknum"      => 1 }
       # test universal tag
-      assert_equal expected_tag, mp3.tag
+      assert_equal expected_tag, mp3.tag.to_hash
     end
   end
 
@@ -471,7 +469,7 @@ class Mp3InfoTest < Test::Unit::TestCase
   end
 
   def test_hastag_class_methods_with_a_stringio
-    Mp3Info.open(TEMP_FILE) do |info| 
+    Mp3Info.open(TEMP_FILE) do |info|
       info.tag1 = @tag
     end
     io = load_string_io
@@ -490,7 +488,7 @@ class Mp3InfoTest < Test::Unit::TestCase
 
   def test_modifying_an_io
     io = open(TEMP_FILE, "r")
-    Mp3Info.open(io) do |mp3| 
+    Mp3Info.open(io) do |mp3|
       mp3.tag.artist = "test_artist"
     end
   end
@@ -504,9 +502,7 @@ class Mp3InfoTest < Test::Unit::TestCase
     end
 
     Mp3Info.open("/tmp/test.mp3") do |info|
-      assert_nothing_raised do
-        info.each_frame { |frame| frame }
-      end
+      info.each_frame { |frame| frame }
       assert(info.vbr)
       assert_in_delta(174.210612, info.length, 0.000001)
     end
@@ -526,7 +522,6 @@ class Mp3InfoTest < Test::Unit::TestCase
       mp3.tag2.update(tag)
     end
     return Mp3Info.open(TEMP_FILE) { |m| m.tag2 }
-    #system("cp -v #{TEMP_FILE} #{TEMP_FILE}.test")
   end
 
   def random_string(size)
@@ -558,7 +553,7 @@ class Mp3InfoTest < Test::Unit::TestCase
       :emphasis=>0,
       :channel_num=>1,
       :channel_mode=>"JStereo"
-      }, mp3.header)
+    }, mp3.header)
   end
 
   def load_string_io(filename = TEMP_FILE)
@@ -588,26 +583,8 @@ class Mp3InfoTest < Test::Unit::TestCase
       content = Zlib::Inflate.inflate(content)
     end
 
-    File.open(TEMP_FILE, "w") do |f| 
+    File.open(TEMP_FILE, "w") do |f|
       f.write(content)
     end
   end
-=begin
-
-  def test_encoder
-    write_to_temp
-    info = Mp3Info.new(TEMP_FILE)
-    assert(info.encoder == "Lame 3.93")
-  end
-
-  def test_vbr
-    mp3_vbr = Base64.decode64 <<EOF
-
-EOF
-    File.open(TEMP_FILE, "w") { |f| f.write(mp3_vbr) }
-    info = Mp3Info.new(TEMP_FILE)
-    assert_equal(info.vbr, true)
-    assert_equal(info.bitrate, 128)
-  end
-=end
 end
