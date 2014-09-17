@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
-$:.unshift("lib/")
-$:.unshift("test")
+dir = File.dirname(__FILE__)
+$:.unshift("#{dir}/../lib/")
+$:.unshift("#{dir}/../test")
 
 require "helper"
 require "mp3info"
@@ -24,7 +25,7 @@ class Mp3InfoTest < TestCase
     "TALB" => "album",
     "TYER" => "year",
     "TRCK" => "tracknum",
-    "USLT" => "lyrics"
+    "USLT" => "lyrics test 123456789"
   }
 
   DUMMY_TAG1 = {
@@ -242,7 +243,7 @@ class Mp3InfoTest < TestCase
   def test_id3v2_basic
     written_tag = write_tag2_to_temp_file(DUMMY_TAG2)
     assert_equal(DUMMY_TAG2, written_tag.to_hash)
-    id3v2_prog_test(DUMMY_TAG2, written_tag)
+    id3v2_prog_test(DUMMY_TAG2, written_tag.to_hash)
   end
 
   #test the tag with the "id3v2" program
@@ -265,15 +266,15 @@ class Mp3InfoTest < TestCase
       if match = /^(.{4}) \(.+\): (.+)$/.match(line)
         k, v = match[1, 2]
         case k
-          #COMM (Comments): ()[spa]: fmg
-        when "COMM"
+        #COMM (Comments): ()[spa]: fmg
+        when "COMM", "USLT"
           v.sub!(/\(\)\[.{3}\]: (.+)/, '\1')
         end
         id3v2_output[k] = v
       end
     end
 
-    assert_equal( id3v2_output, written_tag, "id3v2 program output doesn't match")
+    assert_equal( id3v2_output, written_tag.to_hash, "id3v2 program output doesn't match")
   end
 
   def test_id3v2_complex
