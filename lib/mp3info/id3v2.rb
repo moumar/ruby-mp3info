@@ -391,13 +391,13 @@ class ID3v2 < DelegateClass(Hash)
     @hash.each do |k, v|
       next unless v
       next if v.respond_to?("empty?") and v.empty?
-      
+
       # Automagically translate V2 to V3 tags
       k = TAG_MAPPING_2_2_to_2_3[k] if TAG_MAPPING_2_2_to_2_3.has_key?(k)
 
       # doesn't encode id3v2.2 tags, which have 3 characters
-      next if k.size != 4 
-      
+      next if k.size != 4
+
       # Output one flag for each array element, or one only if it's not an array
       [v].flatten.each do |value|
         data = encode_tag(k, value.to_s)
@@ -416,7 +416,7 @@ class ID3v2 < DelegateClass(Hash)
     end
 
     tag_str = "ID3"
-    #version_maj, version_min, unsync, ext_header, experimental, footer 
+    #version_maj, version_min, unsync, ext_header, experimental, footer
     tag_str << [ 3, 0, "0000" ].pack("CCB4")
     tag_str << [to_syncsafe(tag.size)].pack("N")
     tag_str << tag
@@ -434,14 +434,14 @@ class ID3v2 < DelegateClass(Hash)
       transcoded_value = Mp3Info::EncodingHelper.convert_to(value, "utf-8", "utf-16")
     end
     case name
-      when "COMM", "USLT"
-        #puts "encode COMM: lang: #{@options[:lang]}, value #{transcoded_value.inspect}" if $DEBUG
-	s = [ 1, @options[:lang], "\xFE\xFF\x00\x00", transcoded_value].pack("ca3a*a*")
-	return s
-      when /^T/
-        unless RUBY_1_8
-          transcoded_value.force_encoding("BINARY")
-        end
+    when "COMM", "USLT"
+      puts "encode #{name} lang: #{@options[:lang]}, value #{transcoded_value.inspect}" if $DEBUG
+      s = [ 1, @options[:lang], "\xFE\xFF\x00\x00", transcoded_value].pack("ca3a*a*")
+      return s
+    when /^T/
+      unless RUBY_1_8
+        transcoded_value.force_encoding("BINARY")
+      end
 	return "\x01" + transcoded_value
       else
         return value
@@ -470,7 +470,7 @@ class ID3v2 < DelegateClass(Hash)
         end
         puts "COM tag found. encoding: #{encoding_index} lang: #{lang} str: #{out.inspect}" if $DEBUG
       else
-        encoding_index = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)   
+        encoding_index = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)
         out = raw_value[1..-1]
       end
       # we need to convert the string in order to match
