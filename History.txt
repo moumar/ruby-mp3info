@@ -1,3 +1,8 @@
+=== 0.8.5 / 2014-09-17
+
+* lyrics support (USLT tag) (thanks to ipmsteven)
+* fixed travis CI tests (thanks to ipmsteven)
+
 === 0.8.4 / 2014-04-26
 
 * more robust frame scanning when unsynced (thanks to emonsqueeze for the bug report)
