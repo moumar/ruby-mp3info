@@ -76,12 +76,12 @@ class Mp3Info
 
   TAG1_SIZE = 128
   #MAX_FRAME_COUNT = 6  #number of frame to read for encoder detection
-  
+
   # map to fill the "universal" tag (#tag attribute)
   # for id3v2.2
-  TAG_MAPPING_2_2 = { 
+  TAG_MAPPING_2_2 = {
     "title"    => "TT2",
-    "artist"   => "TP1", 
+    "artist"   => "TP1",
     "album"    => "TAL",
     "year"     => "TYE",
     "tracknum" => "TRK",
@@ -90,20 +90,20 @@ class Mp3Info
   }
 
   # for id3v2.3 and 2.4
-  TAG_MAPPING_2_3 = { 
+  TAG_MAPPING_2_3 = {
     "title"    => "TIT2",
-    "artist"   => "TPE1", 
+    "artist"   => "TPE1",
     "album"    => "TALB",
     "year"     => "TYER",
     "tracknum" => "TRCK",
     "comments" => "COMM",
     "genre_s"  => "TCON"
   }
-  
+
   # http://www.codeproject.com/audio/MPEGAudioInfo.asp
   SAMPLES_PER_FRAME = [
     nil,
-    {1=>384, 2=>384, 2.5=>384},    # Layer I   
+    {1=>384, 2=>384, 2.5=>384},    # Layer I
     {1=>1152, 2=>1152, 2.5=>1152}, # Layer II
     {1=>1152, 2=>576, 2.5=>576}    # Layer III
   ]
@@ -203,7 +203,7 @@ class Mp3Info
       File.open(filename, "rb+") { |f| f.truncate(newsize) }
     end
   end
-  
+
   # Remove id3v2 tag from +filename+
   def self.removetag2(filename)
     self.open(filename) do |mp3|
@@ -212,7 +212,7 @@ class Mp3Info
   end
 
   # Instantiate Mp3Info object with name +filename+.
-  # options hash is used for ID3v2#new. 
+  # options hash is used for ID3v2#new.
   # Specify :parse_tags => false to disable the processing
   # of the tags (read and write).
   # Specify :parse_mp3 => false to disable processing of the mp3
@@ -228,7 +228,7 @@ class Mp3Info
     @id3v2_options = options
     reload
   end
-  
+
   # reload (or load for the first time) the file from disk
   def reload
     @header = {}
@@ -266,7 +266,7 @@ class Mp3Info
         @tag = {}
         # creation of a sort of "universal" tag, regardless of the tag version
         tag2_mapping = @tag2.version =~ /^2\.2/ ? TAG_MAPPING_2_2 : TAG_MAPPING_2_3
-        tag2_mapping.each do |key, tag2_name| 
+        tag2_mapping.each do |key, tag2_name|
           tag_value = (@tag2[tag2_name].is_a?(Array) ? @tag2[tag2_name].first : @tag2[tag2_name])
           next unless tag_value
           @tag[key] = tag_value.is_a?(Array) ? tag_value.first : tag_value
@@ -313,7 +313,7 @@ class Mp3Info
     @tag1.clear
     self
   end
-  
+
   # Remove id3v2 from mp3
   def removetag2
     @tag2.clear
@@ -341,9 +341,9 @@ class Mp3Info
     @filename = new_filename
   end
 
-  # this method returns the "audio-only" data boundaries of the file, 
-  # i.e. content stripped form tags. Useful to compare 2 files with the same 
-  # audio content but with differents tags. Returned value is an array 
+  # this method returns the "audio-only" data boundaries of the file,
+  # i.e. content stripped form tags. Useful to compare 2 files with the same
+  # audio content but with differents tags. Returned value is an array
   # [position_in_the_file, length_of_the_data]
   def audio_content
     pos = 0
@@ -369,7 +369,7 @@ class Mp3Info
     puts "close" if $DEBUG
     return unless @io_is_a_file
     if !@tag_parsing_enabled
-      return 
+      return
     end
     if @tag != @tag_orig
       puts "@tag has changed" if $DEBUG
@@ -436,7 +436,7 @@ class Mp3Info
   #        @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
   #        @io.seek(tag2_len, IO::SEEK_CUR)
   #      end
-        filename_splitted = File.split(@filename_or_io) 
+        filename_splitted = File.split(@filename_or_io)
         filename_splitted[-1] = ".#{filename_splitted[-1]}.tmp"
         tempfile_name = File.join(filename_splitted)
         File.open(tempfile_name, "wb") do |tempfile|
@@ -450,11 +450,16 @@ class Mp3Info
           end
         end
       end
-      File.rename(tempfile_name, @filename_or_io)
+      begin
+        File.rename(tempfile_name, @filename_or_io)
+      rescue Errno::EACCES
+        FileUtils.cp(tempfile_name, @filename_or_io)
+        FileUtils.rm tempfile_name
+      end
     end
   end
 
-  # close and reopen the file, i.e. commit changes to disk and 
+  # close and reopen the file, i.e. commit changes to disk and
   # reload it (only works with "true" files, not StringIO ones)
   def flush
     return unless @io_is_a_file
@@ -470,7 +475,7 @@ class Mp3Info
     s
   end
 
-  # iterates over each mpeg frame over the file, allowing you to 
+  # iterates over each mpeg frame over the file, allowing you to
   # write some funny things, like an mpeg lossless cutter, or frame
   # counter, or whatever you like ;) +frame+ is a hash with the following keys:
   # :layer, :bitrate, :samplerate, :mpeg_version, :padding and :size (in bytes)
@@ -657,7 +662,7 @@ private
       flags = @io.get32bits
       stream_size = frame_count = 0
       flags[1] == 1 and frame_count = @io.get32bits
-      flags[2] == 1 and stream_size = @io.get32bits 
+      flags[2] == 1 and stream_size = @io.get32bits
       puts "#{frame_count} frames" if $DEBUG
       raise(Mp3InfoError, "bad VBR header") if frame_count.zero?
       # currently this just skips the TOC entries if they're found
