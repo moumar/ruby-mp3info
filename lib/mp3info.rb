@@ -274,9 +274,11 @@ class Mp3Info
           if %w{year tracknum}.include?(key)
             @tag[key] = tag_value.to_i
           end
-          # this is a special case with id3v2.2, which uses
+          # this is a special case with id3v2.2-3, which uses
           # old fashionned id3v1 genres
-          if tag2_name == "TCO" && tag_value =~ /^\((\d+)\)$/
+	  # also id3v2.4 ought not to use the old fashioned genres but examples exist where it does
+          if ( ((tag2_name == "TCO") || (tag2_name == "TCON")) && tag_value =~ /^\((\d+)\)$/) ||
+		(tag2_name == "TCON" && tag_value =~ /^(\d+)$/)
             @tag["genre_s"] = GENRES[$1.to_i]
           end
         end
