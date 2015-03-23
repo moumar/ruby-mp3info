@@ -424,6 +424,7 @@ class Mp3Info
       puts "@tag2 has changed" if $DEBUG
       raise(Mp3InfoError, "file is not writable") unless File.writable?(@filename_or_io)
       tempfile_name = nil
+      @io.close
       File.open(@filename_or_io, 'rb+') do |file|
         #if tag2 already exists, seek to end of it
         if @tag2.parsed?
