@@ -494,6 +494,15 @@ class Mp3InfoTest < TestCase
     end
   end
 
+  def test_22k
+    load_fixture_to_temp_file("22k", false)
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_equal 40, mp3.bitrate
+      assert !mp3.vbr
+      assert_equal 2.0, mp3.length
+    end
+  end
+
   def test_parsing_unsynced_file
     load_fixture_to_temp_file("vbr")
     File.open("/tmp/test.mp3", "w") do |tf|
