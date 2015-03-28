@@ -11,6 +11,7 @@ require "mp3info/extension_modules"
 
 # Raised on any kind of error related to ruby-mp3info
 class Mp3InfoError < StandardError ; end
+class Mp3InfoEOFError < Mp3InfoError; end
 
 class Mp3InfoInternalError < StandardError #:nodoc:
 end
@@ -603,7 +604,7 @@ private
     dummyproof.times do |i|
       if @io.getbyte == 0xff
         data = @io.read(3)
-        raise(Mp3InfoError, "end of file reached") if @io.eof?
+        raise Mp3InfoEOFError if @io.eof?
         head = 0xff000000 + (data.getbyte(0) << 16) + (data.getbyte(1) << 8) + data.getbyte(2)
         begin
           return Mp3Info.get_frames_infos(head)
@@ -613,7 +614,7 @@ private
       end
     end
     if @io.eof?
-      raise Mp3InfoError, "cannot find a valid frame: got EOF"
+      raise Mp3InfoEOFError
     else
       raise Mp3InfoError, "cannot find a valid frame after reading #{dummyproof} bytes"
     end
@@ -621,12 +622,14 @@ private
 
   def frame_scan(frame_limit = nil)
     frame_count = bitrate_sum = 0
-    each_frame do |frame|
-      bitrate_sum += frame[:bitrate]
-      frame_count += 1
-      break if frame_limit && (frame_count >= frame_limit)
+    begin
+      each_frame do |frame|
+        bitrate_sum += frame[:bitrate]
+        frame_count += 1
+        break if frame_limit && (frame_count >= frame_limit)
+      end
+    rescue Mp3InfoEOFError
     end
-
     average_bitrate = bitrate_sum/frame_count.to_f
     length = frame_count * get_frame_length
     [average_bitrate, length]
@@ -681,13 +684,11 @@ private
       stream_size = @io_size - (hastag1? ? TAG1_SIZE : 0) - (@tag2.io_position || 0)
       @length = ((stream_size << 3)/1000.0)/@bitrate
       # read the first 100 frames and decide if the mp3 is vbr and needs full scan
-      begin
-        average_bitrate, _ = frame_scan(100)
-        if @bitrate != average_bitrate
-          @vbr = true
-          @bitrate, @length = frame_scan
-        end
-      rescue Mp3InfoError
+      average_bitrate, _ = frame_scan(100)
+      if @bitrate != average_bitrate
+        puts "@bitrate (#{@bitrate}) != average_bitrate (#{average_bitrate}), performing full scan" if $DEBUG
+        @vbr = true
+        @bitrate, @length = frame_scan
       end
     end
   end

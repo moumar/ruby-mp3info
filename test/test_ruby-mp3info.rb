@@ -65,7 +65,7 @@ class Mp3InfoTest < TestCase
       str = "0"*1024*1024
       f.write(str)
     end
-    assert_raises(Mp3InfoError) do
+    assert_raises(Mp3InfoEOFError) do
       Mp3Info.new(TEMP_FILE)
     end
   end
