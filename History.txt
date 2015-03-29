@@ -1,3 +1,9 @@
+=== 0.8.6 / 2015-03-28
+
+* fixed frame size computation (thanks to ekaminski)
+* now correctly close the @io (thanks to cyberroot)
+* correctly compute length of VBR files (fixes #42)
+
 === 0.8.5 / 2014-09-17
 
 * lyrics support (USLT tag) (thanks to ipmsteven)
