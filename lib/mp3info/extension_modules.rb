@@ -71,12 +71,22 @@ class Mp3Info
       if RUBY_1_8
         convert_to(out, "UTF-8", "UTF-16")
       else
-        if out.bytes.first == 0xff
+        # String#bytes is not an array in Ruby 1.9
+        bytes = out.bytes.to_a
+        if out.length >= 2 and bytes[0] == 0xff and bytes[1] == 0xfe
           tag_encoding = "UTF-16LE"
-        else
+          first_valid = 1
+        elsif out.length >= 2 and bytes[0] == 0xfe and bytes[1] == 0xff
           tag_encoding = "UTF-16BE"
+          first_valid = 1
+        else
+          # ID3v2.3.0 section 3.3 mandates a BOM but some software
+          # erroneously omits it so we have to guess. Since most of
+          # the world is little endian we might as well go with that.
+          tag_encoding = "UTF-16LE"
+          first_valid = 0
         end
-        out = out.dup.force_encoding(tag_encoding)[1..-1]
+        out = out.dup.force_encoding(tag_encoding)[first_valid..-1]
       end
     end
   end

@@ -518,6 +518,21 @@ class Mp3InfoTest < TestCase
     end
   end
 
+  def test_utf16_no_bom
+    load_fixture_to_temp_file("utf16_no_bom")
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_equal "2.3.0", mp3.tag2.version
+      expected_tag = {
+        "TALB" => "\u266bRodrigo y Gabriela",
+        "TRCK"=>"1",
+        "TIT2"=>"Tamacun",
+        "TPE1"=>"Rodrigo y Gabriela"
+      }
+      tag = mp3.tag2.dup
+      assert_equal expected_tag, tag.to_hash
+    end
+  end
+
   def compute_audio_content_mp3_digest(mp3)
     pos, size = mp3.audio_content
     data = File.open(mp3.filename) do |f|
