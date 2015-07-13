@@ -295,13 +295,17 @@ class ID3v2 < DelegateClass(Hash)
       if header.match jpg
         mime = "jpg"
         mime_pos = header =~ jpg
-        start = Regexp.new("^\377".force_encoding("BINARY"),
-                         Regexp::FIXEDENCODING )
+        start = Regexp.new("\xFF\xD8".force_encoding("BINARY"),
+                Regexp::FIXEDENCODING )
+        start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
+                            Regexp::FIXEDENCODING )
       elsif header.match png
         mime = "png"
         mime_pos = header =~ png
-        start = Regexp.new("^\x89PNG".force_encoding("BINARY"),
-                         Regexp::FIXEDENCODING )
+        start = Regexp.new("\x89PNG".force_encoding("BINARY"),
+                Regexp::FIXEDENCODING )
+        start_with_anchor = Regexp.new("^\x89PNG".force_encoding("BINARY"),
+                            Regexp::FIXEDENCODING )
       else
         mime = "dat"
       end
@@ -309,7 +313,7 @@ class ID3v2 < DelegateClass(Hash)
       puts "analysing image: #{header.inspect}..." if $DEBUG
       _, _, desc, data = pic[mime_pos, pic.length].unpack('Z*hZ*a*')
 
-      if mime != "dat" and (!data.match(start) or data.nil?)
+      if mime != "dat" and (!data.match(start_with_anchor) or data.nil?)
         real_start = pic =~ start
         data = pic[real_start, pic.length]
       end
