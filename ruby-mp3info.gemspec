@@ -2,11 +2,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{ruby-mp3info}
-  s.version = "0.8.6"
+  s.version = "0.8.7"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Guillaume Pierronnet"]
-  s.date = %q{2014-03-28}
+  s.date = %q{2015-07-13}
   s.description = %q{ruby-mp3info read low-level informations and manipulate tags on mp3 files.}
   s.email = ["guillaume.pierronnet@gmail.com"]
   s.extra_rdoc_files = ["History.txt", "Manifest.txt", "README.md"]

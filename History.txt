@@ -1,3 +1,8 @@
+=== 0.8.7 / 2015-07-13
+
+*  Cope with malformed UTF16 string tags without BOM  (thanks to mikecrowe)
+*  Fixes for when the desc + data are not unpacked correctly for an id3v2 jpeg (thanks to ekaminsky)
+
 === 0.8.6 / 2015-03-28
 
 * fixed frame size computation (thanks to ekaminski)
