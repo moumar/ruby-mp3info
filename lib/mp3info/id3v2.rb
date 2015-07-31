@@ -356,7 +356,7 @@ class ID3v2 < DelegateClass(Hash)
   ### Parses the POPM field, and returns a Float, or nil, given the rating scheme
   def rating(scheme=:mm)
     rating_raw = split_popm(self["POPM"])[1]
-    return "ERROR: Invalid rating" if ! (rating_raw.integer? || rating_raw.nil?)
+    return "ERROR: Invalid rating" if ! (rating_raw.nil? || rating_raw.integer?)
     case scheme
     when :mm # MediaMonkey
       mm_rating(rating_raw)
