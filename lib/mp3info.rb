@@ -461,6 +461,7 @@ class Mp3Info
         FileUtils.rm tempfile_name
       end
     end
+    @io.close unless @io.closed?
   end
 
   # close and reopen the file, i.e. commit changes to disk and
