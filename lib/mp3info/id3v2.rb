@@ -19,8 +19,8 @@ class ID3v2Error < StandardError ; end
 # It works like a hash, where key represents the tag name as 3 or 4 upper case letters
 # (respectively related to 2.2 and 2.3+ tag) and value represented as array or raw value.
 # Written version is always 2.3.
-class ID3v2 < DelegateClass(Hash) 
-  
+class ID3v2 < DelegateClass(Hash)
+
   TAGS = {
     "AENC" => "Audio encryption",
     "APIC" => "Attached picture",
@@ -168,17 +168,17 @@ class ID3v2 < DelegateClass(Hash)
 
   # In Ruby 2.1.0 (and possibly others), DelegateClass breaks Kernel methods.
   include Kernel
-  
+
   # this is the position in the file where the tag really ends
   attr_reader :io_position
 
   # :+lang+: for writing comments
   #
-  # [DEPRECATION] :+encoding+: one of the string of +TEXT_ENCODINGS+, 
+  # [DEPRECATION] :+encoding+: one of the string of +TEXT_ENCODINGS+,
   # use of :encoding parameter is DEPRECATED. In ruby 1.8, use utf-8 encoded strings for tags.
   # In ruby >= 1.9, strings are automatically transcoded from their originaloriginal  encoding.
   attr_reader :options
-  
+
   # possible options are described above ('options' attribute)
   # you can access this object like an hash, with [] and []= methods
   # special cases are ["disc_number"] and ["disc_total"] mirroring TPOS attribute
@@ -208,7 +208,7 @@ class ID3v2 < DelegateClass(Hash)
   def changed?
     @hash_orig != @hash
   end
-  
+
   # full version of this tag (like "2.3.0") or nil
   # if tag was not correctly read
   def version
@@ -237,14 +237,14 @@ class ID3v2 < DelegateClass(Hash)
   end
 
   ### ID3V2::add_picture
-  ### Takes an image string as input and writes it with header. 
+  ### Takes an image string as input and writes it with header.
   ### Mime type is automatically guessed by default.
   ### It is possible but not necessary to include:
   ###  :pic_type => 0 - 14 (see http://id3.org/id3v2.3.0#Attached_picture)
-  ###  :mime => 'gif' 
+  ###  :mime => 'gif'
   ###  :description => "Image description"
   def add_picture(data, opts = {})
-    options = { 
+    options = {
                 :pic_type => 0,
                 :mime => nil,
                 :description => "image"
@@ -282,7 +282,7 @@ class ID3v2 < DelegateClass(Hash)
     apic_images.each_index do |index|
       pic = apic_images[index]
       next if !pic.is_a?(String) or pic == ""
-      pic.force_encoding 'BINARY' 
+      pic.force_encoding 'BINARY'
       picture = []
       jpg = Regexp.new("jpg|JPG|jpeg|JPEG".force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
@@ -290,7 +290,7 @@ class ID3v2 < DelegateClass(Hash)
                    Regexp::FIXEDENCODING )
       header = pic.unpack('a120').first.force_encoding "BINARY"
       mime_pos = 0
-      
+
       # safest way to correctly extract jpg and png is finding mime
       if header.match jpg
         mime = "jpg"
@@ -325,18 +325,18 @@ class ID3v2 < DelegateClass(Hash)
 
       if mime == "jpg"
          # inspect jpg image header (first 10 chars) for "\xFF\x00" (expect "\xFF")
-         trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'), 
+         trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'),
                                 Regexp::FIXEDENCODING)
          if (data =~ trailing_null_byte) < 10
            data.gsub!(trailing_null_byte, "\xff".force_encoding('BINARY'))
          end
       end
-      
+
       desc = "%02i_#{desc[0,25]}" % (index + 1)
-      
+
       filename = desc.match("#{mime}$") ? desc : "#{desc}.#{mime}"
       filename.gsub!('/','')
-      
+
       picture[0] = filename
       picture[1] = data
       result << picture
@@ -347,10 +347,25 @@ class ID3v2 < DelegateClass(Hash)
   def inspect
     self.to_inspect_hash
   end
-  
+
   def remove_pictures
     self["APIC"] = ""
     self["PIC"]  = ""
+  end
+
+  ### Parses the POPM field, and returns a Float, or nil, given the rating scheme
+  def rating(scheme=:mm)
+    rating_raw = split_popm(self["POPM"])[1]
+    return "ERROR: Invalid rating" if ! (rating_raw.nil? || rating_raw.integer?)
+    case scheme
+    when :mm # MediaMonkey
+      mm_rating(rating_raw)
+    when :wmp # Windows Media Player
+      wmp_rating(rating_raw)
+    else
+      puts "ERROR: Unknown rating scheme"
+      return nil
+    end
   end
 
   ### gets id3v2 tag information from io object (must support #seek() method)
@@ -363,7 +378,7 @@ class ID3v2 < DelegateClass(Hash)
     raise(ID3v2Error, "can't find version_maj ('#{version_maj}')") unless [2, 3, 4].include?(version_maj)
     @version_maj, @version_min = version_maj, version_min
     @tag_length = @io.get_syncsafe
-    
+
     @parsed = true
     begin
       case @version_maj
@@ -429,6 +444,40 @@ class ID3v2 < DelegateClass(Hash)
   end
 
   private
+
+  def split_popm(popm)
+    # NOTE: this does not support ratings for multiple users
+    popm.nil? ? [nil,nil,nil] : popm.unpack('Z*Cl')
+  end
+
+  def mm_rating(raw)
+    case raw
+    when 0          then 0.0
+    when 1          then 1.0
+    when 64         then 2.0
+    when 128        then 3.0
+    when 196        then 4.0
+    when 255        then 5.0
+    when (2..31)    then 0.5
+    when (32..63)  then 1.5
+    when (65..127)  then 2.5
+    when (129..195) then 3.5
+    when (197..254) then 4.5
+    else nil
+    end
+  end
+
+  def wmp_rating(raw)
+    case raw
+    when 0          then 0.0
+    when (1..31)    then 1.0
+    when (32..95)   then 2.0
+    when (96..159)  then 3.0
+    when (160..223) then 4.0
+    when (224..255) then 5.0
+    else nil
+    end
+  end
 
   def encode_tag(name, value)
     puts "encode_tag(#{name.inspect}, #{value.inspect})" if $DEBUG
@@ -501,7 +550,7 @@ class ID3v2 < DelegateClass(Hash)
         else
           r = Regexp.new("\x00*$".encode(out.encoding))
         end
-        out.sub!(r, '') 
+        out.sub!(r, '')
       end
 
       return out
@@ -519,7 +568,7 @@ class ID3v2 < DelegateClass(Hash)
         @io.seek(-4, IO::SEEK_CUR)    # 1. find a padding zero,
 	seek_to_v2_end
         break
-      else               
+      else
 	if @version_maj == 4
 	  size = @io.get_syncsafe
 	else
@@ -531,7 +580,7 @@ class ID3v2 < DelegateClass(Hash)
       end
       break if @io.pos >= @tag_length # 2. reach length from header
     end
-  end    
+  end
 
   ### reads id3 ver 2.2.x frames and adds the contents to @tag2 hash
   ### NOTE: the id3v2 header does not take padding zero's into consideration
@@ -548,8 +597,8 @@ class ID3v2 < DelegateClass(Hash)
         break if @io.pos >= @tag_length
       end
     end
-  end    
-  
+  end
+
   ### Add data to tag2["name"]
   ### read lang_encoding, decode data if unicode and
   ### create an array if the key already exists in the tag
@@ -559,11 +608,11 @@ class ID3v2 < DelegateClass(Hash)
     if size > 50_000_000
       raise ID3v2Error, "tag size is > 50_000_000"
     end
-      
+
     data_io = @io.read(size)
     data = decode_tag(name, data_io)
     if data && !data.empty?
-      if self.keys.include?(name) 
+      if self.keys.include?(name)
         if self[name].is_a?(Array)
           unless self[name].include?(data)
             self[name] << data
@@ -572,7 +621,7 @@ class ID3v2 < DelegateClass(Hash)
           self[name] = [ self[name], data ]
         end
       else
-        self[name] = data 
+        self[name] = data
       end
 
       if name == "TPOS" && data =~ /(\d+)\s*\/\s*(\d+)/
@@ -583,7 +632,7 @@ class ID3v2 < DelegateClass(Hash)
 
     puts "self[#{name.inspect}] = #{self[name].inspect}" if $DEBUG
   end
-  
+
   ### runs thru @file one char at a time looking for best guess of first MPEG
   ###  frame, which should be first 0xff byte after id3v2 padding zero's
   def seek_to_v2_end
@@ -592,12 +641,12 @@ class ID3v2 < DelegateClass(Hash)
     end
     @io.seek(-1, IO::SEEK_CUR)
   end
-  
+
   ### convert an 32 integer to a syncsafe string
   def to_syncsafe(num)
     ( (num<<3) & 0x7f000000 )  + ( (num<<2) & 0x7f0000 ) + ( (num<<1) & 0x7f00 ) + ( num & 0x7f )
   end
-  
+
   ### this is especially useful for printing out APIC data because
   ### only the header of the APIC tag is of interest
   def pretty_header(str, chars=128)
@@ -605,4 +654,3 @@ class ID3v2 < DelegateClass(Hash)
   end
 
 end
-
