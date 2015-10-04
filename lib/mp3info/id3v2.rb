@@ -467,7 +467,7 @@ class ID3v2 < DelegateClass(Hash)
           p out
 =end
           comment = Mp3Info::EncodingHelper.decode_utf16(raw_tag)
-          split_val = RUBY_1_8 ? "\x00\x00" : "\x00".encode(comment.encoding).b
+          split_val = RUBY_1_8 ? "\x00\x00" : "\x00".encode(comment.encoding).force_encoding('ASCII-8BIT')
           out = raw_tag.split(split_val).last rescue ""
         else
           comment, out = raw_tag.split("\x00", 2)
