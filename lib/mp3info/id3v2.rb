@@ -292,19 +292,19 @@ class ID3v2 < DelegateClass(Hash)
       mime_pos = 0
       
       # safest way to correctly extract jpg and png is finding mime
-      if header.match jpg
-        mime = "jpg"
-        mime_pos = header =~ jpg
-        start = Regexp.new("\xFF\xD8".force_encoding("BINARY"),
-                Regexp::FIXEDENCODING )
-        start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
-                            Regexp::FIXEDENCODING )
-      elsif header.match png
+      if header.match png
         mime = "png"
         mime_pos = header =~ png
         start = Regexp.new("\x89PNG".force_encoding("BINARY"),
                 Regexp::FIXEDENCODING )
         start_with_anchor = Regexp.new("^\x89PNG".force_encoding("BINARY"),
+                            Regexp::FIXEDENCODING )
+      elsif header.match jpg
+        mime = "jpg"
+        mime_pos = header =~ jpg
+        start = Regexp.new("\xFF\xD8".force_encoding("BINARY"),
+                Regexp::FIXEDENCODING )
+        start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
                             Regexp::FIXEDENCODING )
       else
         mime = "dat"
