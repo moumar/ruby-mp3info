@@ -207,7 +207,7 @@ class Mp3InfoTest < TestCase
     end
   end
 
-  def test_id3v2_get_pictures
+  def test_id3v2_get_pictures_png
     img = "\x89PNG".force_encoding('BINARY') +
       random_string(120).force_encoding('BINARY')
     Mp3Info.open(TEMP_FILE) do |mp3|
@@ -218,7 +218,7 @@ class Mp3InfoTest < TestCase
     end
   end
 
-  def test_id3v2_get_pictures
+  def test_id3v2_get_pictures_png_bad_mime
     img = "\x89PNG\r\n\u001A\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0001\b\u0002\u0000\u0000\u0000\x90wS\xDE\u0000\u0000\u0000\fIDAT\b\xD7c\xF8\xFF\xFF?\u0000\u0005\xFE\u0002\xFE\xDC\xCCY\xE7\u0000\u0000\u0000\u0000IEND\xAEB`\x82".force_encoding('BINARY')
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.add_picture(img, :description => 'example image.png', :mime => 'jpg')
@@ -229,8 +229,34 @@ class Mp3InfoTest < TestCase
     end
   end
   
+  def test_id3v2_get_pictures_jpg
+    img = "\xFF\xD8".force_encoding('BINARY') +
+          random_string(120).force_encoding('BINARY')
+    
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      mp3.tag2.add_picture(img, :description => 'example image.jpg')
+    end
+    
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_equal(["01_example image.jpg", img], mp3.tag2.pictures[0])
+    end
+  end
+
+  def test_id3v2_get_pictures_jpg_bad_mime
+    img = "\xFF\xD8".force_encoding('BINARY') +
+          random_string(120).force_encoding('BINARY')
+    
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      mp3.tag2.add_picture(img, :description => 'example image.jpg', :mime => 'png')
+    end
+    
+    Mp3Info.open(TEMP_FILE) do |mp3|
+      assert_equal(["01_example image.jpg", img], mp3.tag2.pictures[0])
+    end
+  end
+
   def test_id3v2_remove_pictures
-    jpg_data = "\xFF".force_encoding('BINARY') +
+    jpg_data = "\xFF\xD8".force_encoding('BINARY') +
       random_string(123).force_encoding('BINARY')
     Mp3Info.open(TEMP_FILE) do |mp|
       mp.tag2.add_picture(jpg_data)

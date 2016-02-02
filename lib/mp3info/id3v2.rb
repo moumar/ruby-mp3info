@@ -284,32 +284,26 @@ class ID3v2 < DelegateClass(Hash)
       next if !pic.is_a?(String) or pic == ""
       pic.force_encoding 'BINARY' 
       picture = []
-      jpg = Regexp.new("jpg|JPG|jpeg|JPEG".force_encoding("BINARY"),
+      jpg_regexp = Regexp.new("jpg|JPG|jpeg|JPEG".force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
-      png = Regexp.new("png|PNG".force_encoding("BINARY"),
+      png_regexp = Regexp.new("png|PNG".force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
       header = pic.unpack('a120').first.force_encoding "BINARY"
       mime_pos = 0
       
       # safest way to correctly extract jpg and png is finding mime
-      if header.match jpg and not header.match png
+      if header.match jpg_regexp and not header.match png_regexp
         mime = "jpg"
-        mime_pos = header =~ jpg
+        mime_pos = header =~ jpg_regexp
         start = Regexp.new("\xFF\xD8".force_encoding("BINARY"),
                 Regexp::FIXEDENCODING )
         start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
                                        Regexp::FIXEDENCODING )
-         # inspect jpg image header (first 10 chars) for "\xFF\x00" (expect "\xFF")
-         trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'), 
-                                Regexp::FIXEDENCODING)
-         if (data =~ trailing_null_byte) < 10
-           data.gsub!(trailing_null_byte, "\xff".force_encoding('BINARY'))
-         end
       end
       
-      if header.match png and not header.match jpg
+      if header.match png_regexp and not header.match jpg_regexp
         mime = "png"
-        mime_pos = header =~ png
+        mime_pos = header =~ png_regexp
         start = Regexp.new("\x89PNG".force_encoding("BINARY"),
                 Regexp::FIXEDENCODING )
         start_with_anchor = Regexp.new("^\x89PNG".force_encoding("BINARY"),
@@ -319,12 +313,22 @@ class ID3v2 < DelegateClass(Hash)
       puts "analysing image: #{header.inspect}..." if $DEBUG
       _, _, desc, data = pic[mime_pos, pic.length].unpack('Z*hZ*a*')
 
-      if mime and (!data.match(start_with_anchor) or data.nil?)
-        real_start = pic =~ start
-        data = pic[real_start, pic.length]
-      end
-
-      unless mime
+      if mime
+        if !data.match(start_with_anchor) or data.nil?
+          real_start = pic =~ start
+          data = pic[real_start, pic.length]
+        end
+        
+        if mime == "jpg"
+          # inspect jpg image header (first 10 chars) for "\xFF\x00" (expect "\xFF")
+          trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'), 
+                                          Regexp::FIXEDENCODING)
+          md = data =~ trailing_null_byte
+          if !md.nil? and md < 10
+            data.gsub!(trailing_null_byte, "\xff".force_encoding('BINARY'))
+          end
+        end
+      else
         mime = "dat"
         # if no jpg or png, extract data anyway e.g. gif
         mime, desc, data = pic.unpack('h Z* h Z* a*').values_at(1,3,4)
