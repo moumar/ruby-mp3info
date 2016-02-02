@@ -18,7 +18,7 @@ end
 
 class Mp3Info
 
-  VERSION = "0.8.8"
+  VERSION = "0.8.9"
 
   LAYER = [ nil, 3, 2, 1]
   BITRATE = {
@@ -515,11 +515,11 @@ private
     bitrate = BITRATE[mpeg_version][layer-1][bits(head, 15,12)-1]
     samplerate = SAMPLERATE[mpeg_version][bits(head, 11,10)]
     padding = (head[9] == 1)
-	
+
     frame_slot_count = (( ((SAMPLES_PER_FRAME[layer][mpeg_version] / 8) * (bitrate*1000.0)) / samplerate ) + (padding ? 1 : 0)).to_i
     bytes_per_slot = ((layer == 1) ? 4 : 1)
     size = frame_slot_count * bytes_per_slot
-	
+
     channel_num = Mp3Info.bits(head, 7, 6)
     { :layer => layer,
       :bitrate => bitrate,

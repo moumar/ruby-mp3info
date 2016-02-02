@@ -1,3 +1,7 @@
+=== 0.8.9 / 2016-02-03
+
+* bugfix on JPEG picture parsing + testsuite
+
 === 0.8.8 / 2016-01-26
 
 * fix on picture parsing when mime type is wrong
@@ -132,9 +136,9 @@
 
 === 0.6.2 / 2008-03-02
 
-* better handling of frames: 
+* better handling of frames:
   decode and encode as raw string by default,
-  or handle charset decoding/encoding for /^T/ and 
+  or handle charset decoding/encoding for /^T/ and
   COMM frames
 
 === 0.6.1 / 2008-02-28

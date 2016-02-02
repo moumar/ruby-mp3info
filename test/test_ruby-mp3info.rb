@@ -223,20 +223,20 @@ class Mp3InfoTest < TestCase
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.add_picture(img, :description => 'example image.png', :mime => 'jpg')
     end
-    
+
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_equal(["01_example image.png", img], mp3.tag2.pictures[0])
     end
   end
-  
+
   def test_id3v2_get_pictures_jpg
     img = "\xFF\xD8".force_encoding('BINARY') +
           random_string(120).force_encoding('BINARY')
-    
+
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.add_picture(img, :description => 'example image.jpg')
     end
-    
+
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_equal(["01_example image.jpg", img], mp3.tag2.pictures[0])
     end
@@ -245,11 +245,11 @@ class Mp3InfoTest < TestCase
   def test_id3v2_get_pictures_jpg_bad_mime
     img = "\xFF\xD8".force_encoding('BINARY') +
           random_string(120).force_encoding('BINARY')
-    
+
     Mp3Info.open(TEMP_FILE) do |mp3|
       mp3.tag2.add_picture(img, :description => 'example image.jpg', :mime => 'png')
     end
-    
+
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_equal(["01_example image.jpg", img], mp3.tag2.pictures[0])
     end
