@@ -4,13 +4,6 @@
 
 require "delegate"
 
-if RUBY_VERSION[0..2] == "1.8"
-  require "iconv"
-  RUBY_1_8 = true
-else
-  RUBY_1_8 = false
-end
-
 require "mp3info/extension_modules"
 
 class ID3v2Error < StandardError ; end
@@ -409,9 +402,7 @@ class ID3v2 < DelegateClass(Hash)
         tag << k[0,4]   #4 characte max for a tag's key
         #tag << to_syncsafe(data.size) #+1 because of the language encoding byte
         size = data.size
-        unless RUBY_1_8
-          size = data.dup.force_encoding("binary").size
-        end
+        size = data.dup.force_encoding("binary").size
         tag << [size].pack("N") #+1 because of the language encoding byte
         tag << "\x00"*2 #flags
         tag << data
@@ -442,9 +433,8 @@ class ID3v2 < DelegateClass(Hash)
       s = [ 1, @options[:lang], "\xFE\xFF\x00\x00", transcoded_value].pack("ca3a*a*")
       return s
     when /^T/
-      unless RUBY_1_8
-        transcoded_value.force_encoding("BINARY")
-      end
+      transcoded_value.force_encoding("BINARY")
+
 	return "\x01" + transcoded_value
       else
         return value
@@ -466,7 +456,7 @@ class ID3v2 < DelegateClass(Hash)
           p out
 =end
           comment = Mp3Info::EncodingHelper.decode_utf16(raw_tag)
-          split_val = RUBY_1_8 ? "\x00\x00" : "\x00".encode(comment.encoding).force_encoding('ASCII-8BIT')
+          split_val = "\x00".encode(comment.encoding).force_encoding('ASCII-8BIT')
           out = raw_tag.split(split_val).last rescue ""
         else
           comment, out = raw_tag.split("\x00", 2)
@@ -479,27 +469,19 @@ class ID3v2 < DelegateClass(Hash)
       # we need to convert the string in order to match
       # the requested encoding
       if encoding_index && TEXT_ENCODINGS[encoding_index] && out
-        if RUBY_1_8
-          out = Mp3Info::EncodingHelper.convert_to(out, TEXT_ENCODINGS[encoding_index], "utf-8")
+        if encoding_index == 1
+          out = Mp3Info::EncodingHelper.decode_utf16(out)
         else
-          if encoding_index == 1
-            out = Mp3Info::EncodingHelper.decode_utf16(out)
-          else
-            out.force_encoding(TEXT_ENCODINGS[encoding_index])
-          end
-          if out
-            out.encode!("utf-8")
-          end
+          out.force_encoding(TEXT_ENCODINGS[encoding_index])
+        end
+        if out
+          out.encode!("utf-8")
         end
       end
 
       if out
         # remove padding zeros for textual tags
-        if RUBY_1_8
-          r = /\0*$/
-        else
-          r = Regexp.new("\x00*$".encode(out.encoding))
-        end
+        r = Regexp.new("\x00*$".encode(out.encoding))
         out.sub!(r, '') 
       end
 
