@@ -12,8 +12,8 @@ class ID3v2Error < StandardError ; end
 # It works like a hash, where key represents the tag name as 3 or 4 upper case letters
 # (respectively related to 2.2 and 2.3+ tag) and value represented as array or raw value.
 # Written version is always 2.3.
-class ID3v2 < DelegateClass(Hash) 
-  
+class ID3v2 < DelegateClass(Hash)
+
   TAGS = {
     "AENC" => "Audio encryption",
     "APIC" => "Attached picture",
@@ -161,17 +161,17 @@ class ID3v2 < DelegateClass(Hash)
 
   # In Ruby 2.1.0 (and possibly others), DelegateClass breaks Kernel methods.
   include Kernel
-  
+
   # this is the position in the file where the tag really ends
   attr_reader :io_position
 
   # :+lang+: for writing comments
   #
-  # [DEPRECATION] :+encoding+: one of the string of +TEXT_ENCODINGS+, 
+  # [DEPRECATION] :+encoding+: one of the string of +TEXT_ENCODINGS+,
   # use of :encoding parameter is DEPRECATED. In ruby 1.8, use utf-8 encoded strings for tags.
   # In ruby >= 1.9, strings are automatically transcoded from their originaloriginal  encoding.
   attr_reader :options
-  
+
   # possible options are described above ('options' attribute)
   # you can access this object like an hash, with [] and []= methods
   # special cases are ["disc_number"] and ["disc_total"] mirroring TPOS attribute
@@ -201,7 +201,7 @@ class ID3v2 < DelegateClass(Hash)
   def changed?
     @hash_orig != @hash
   end
-  
+
   # full version of this tag (like "2.3.0") or nil
   # if tag was not correctly read
   def version
@@ -230,14 +230,14 @@ class ID3v2 < DelegateClass(Hash)
   end
 
   ### ID3V2::add_picture
-  ### Takes an image string as input and writes it with header. 
+  ### Takes an image string as input and writes it with header.
   ### Mime type is automatically guessed by default.
   ### It is possible but not necessary to include:
   ###  :pic_type => 0 - 14 (see http://id3.org/id3v2.3.0#Attached_picture)
-  ###  :mime => 'gif' 
+  ###  :mime => 'gif'
   ###  :description => "Image description"
   def add_picture(data, opts = {})
-    options = { 
+    options = {
                 :pic_type => 0,
                 :mime => nil,
                 :description => "image"
@@ -275,7 +275,7 @@ class ID3v2 < DelegateClass(Hash)
     apic_images.each_index do |index|
       pic = apic_images[index]
       next if !pic.is_a?(String) or pic == ""
-      pic.force_encoding 'BINARY' 
+      pic.force_encoding 'BINARY'
       picture = []
       jpg_regexp = Regexp.new("jpg|JPG|jpeg|JPEG".force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
@@ -283,7 +283,7 @@ class ID3v2 < DelegateClass(Hash)
                    Regexp::FIXEDENCODING )
       header = pic.unpack('a120').first.force_encoding "BINARY"
       mime_pos = 0
-      
+
       # safest way to correctly extract jpg and png is finding mime
       if header.match jpg_regexp and not header.match png_regexp
         mime = "jpg"
@@ -293,7 +293,7 @@ class ID3v2 < DelegateClass(Hash)
         start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
                                        Regexp::FIXEDENCODING )
       end
-      
+
       if header.match png_regexp and not header.match jpg_regexp
         mime = "png"
         mime_pos = header =~ png_regexp
@@ -302,7 +302,7 @@ class ID3v2 < DelegateClass(Hash)
         start_with_anchor = Regexp.new("^\x89PNG".force_encoding("BINARY"),
                             Regexp::FIXEDENCODING )
       end
-      
+
       puts "analysing image: #{header.inspect}..." if $DEBUG
       _, _, desc, data = pic[mime_pos, pic.length].unpack('Z*hZ*a*')
 
@@ -311,10 +311,10 @@ class ID3v2 < DelegateClass(Hash)
           real_start = pic =~ start
           data = pic[real_start, pic.length]
         end
-        
+
         if mime == "jpg"
           # inspect jpg image header (first 10 chars) for "\xFF\x00" (expect "\xFF")
-          trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'), 
+          trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'),
                                           Regexp::FIXEDENCODING)
           md = data =~ trailing_null_byte
           if !md.nil? and md < 10
@@ -328,7 +328,7 @@ class ID3v2 < DelegateClass(Hash)
       end
 
       filename = ("%02i_#{desc[0,25]}" % (index + 1)).gsub('/','')
-      
+
       picture[0] = filename
       picture[1] = data
       result << picture
@@ -339,7 +339,7 @@ class ID3v2 < DelegateClass(Hash)
   def inspect
     self.to_inspect_hash
   end
-  
+
   def remove_pictures
     self["APIC"] = ""
     self["PIC"]  = ""
@@ -355,7 +355,7 @@ class ID3v2 < DelegateClass(Hash)
     raise(ID3v2Error, "can't find version_maj ('#{version_maj}')") unless [2, 3, 4].include?(version_maj)
     @version_maj, @version_min = version_maj, version_min
     @tag_length = @io.get_syncsafe
-    
+
     @parsed = true
     begin
       case @version_maj
@@ -445,47 +445,55 @@ class ID3v2 < DelegateClass(Hash)
   def decode_tag(name, raw_value)
     puts("decode_tag(#{name.inspect}, #{raw_value.inspect})") if $DEBUG
     if name =~ /^(T|COM|USLT)/
-      if name =~ /^(COM|USLT)/
-        #FIXME improve this
-        encoding_index, lang, raw_tag = raw_value.unpack("ca3a*")
-        if encoding_index == 1
-=begin
-          comment = Mp3Info::EncodingHelper.decode_utf16(raw_tag)
-          e = comment.encoding
-          out = comment.force_encoding("BINARY").split("\x00\x00").last.force_encoding(e)
-          p out
-=end
-          comment = Mp3Info::EncodingHelper.decode_utf16(raw_tag)
-          split_val = "\x00".encode(comment.encoding).force_encoding('ASCII-8BIT')
-          out = raw_tag.split(split_val).last rescue ""
+      begin
+        if name =~ /^(COM|USLT)/
+          encoding_index, lang, raw_tag = raw_value.unpack("ca3a*")
+          if raw_tag == "\x00"
+            return nil
+          else
+            if encoding_index == 1
+              split_str = /\x00\x00\x00?/
+            else
+              split_str = "\x00"
+            end
+            head, tail = raw_tag.split(split_str)
+            if head == "\xFF\xFE".force_encoding('binary')
+              rgx = Regexp.new("^\xFF\xFE\x00\x00".force_encoding("BINARY"))
+              out = raw_tag.sub(rgx, '')
+            elsif tail
+              out = tail
+            elsif head
+              out = head
+            else
+              warn("warning: cannot decode tag #{name} with raw value #{raw_value.inspect}")
+              return nil
+            end
+          end
+          puts "COM tag found. encoding: #{encoding_index} lang: #{lang} str: #{out.inspect}" if $DEBUG
         else
-          comment, out = raw_tag.split("\x00", 2)
+          encoding_index = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)
+          out = raw_value[1..-1]
         end
-        puts "COM tag found. encoding: #{encoding_index} lang: #{lang} str: #{out.inspect}" if $DEBUG
-      else
-        encoding_index = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)
-        out = raw_value[1..-1]
-      end
-      # we need to convert the string in order to match
-      # the requested encoding
-      if encoding_index && TEXT_ENCODINGS[encoding_index] && out
-        if encoding_index == 1
-          out = Mp3Info::EncodingHelper.decode_utf16(out)
-        else
-          out.force_encoding(TEXT_ENCODINGS[encoding_index])
-        end
-        if out
+        # we need to convert the string in order to match
+        # the requested encoding
+        if TEXT_ENCODINGS[encoding_index]
+          if encoding_index == 1
+            out = Mp3Info::EncodingHelper.decode_utf16(out)
+          else
+            out.force_encoding(TEXT_ENCODINGS[encoding_index])
+          end
           out.encode!("utf-8")
         end
-      end
 
-      if out
         # remove padding zeros for textual tags
         r = Regexp.new("\x00*$".encode(out.encoding))
-        out.sub!(r, '') 
-      end
+        out.sub!(r, '')
 
-      return out
+        return out
+      rescue => e
+        warn "warning: cannot decode tag #{name} with raw value #{raw_value.inspect}: #{e}"
+        return nil
+      end
     else
       return raw_value
     end
@@ -500,7 +508,7 @@ class ID3v2 < DelegateClass(Hash)
         @io.seek(-4, IO::SEEK_CUR)    # 1. find a padding zero,
 	seek_to_v2_end
         break
-      else               
+      else
 	if @version_maj == 4
 	  size = @io.get_syncsafe
 	else
@@ -512,7 +520,7 @@ class ID3v2 < DelegateClass(Hash)
       end
       break if @io.pos >= @tag_length # 2. reach length from header
     end
-  end    
+  end
 
   ### reads id3 ver 2.2.x frames and adds the contents to @tag2 hash
   ### NOTE: the id3v2 header does not take padding zero's into consideration
@@ -529,8 +537,8 @@ class ID3v2 < DelegateClass(Hash)
         break if @io.pos >= @tag_length
       end
     end
-  end    
-  
+  end
+
   ### Add data to tag2["name"]
   ### read lang_encoding, decode data if unicode and
   ### create an array if the key already exists in the tag
@@ -540,11 +548,11 @@ class ID3v2 < DelegateClass(Hash)
     if size > 50_000_000
       raise ID3v2Error, "tag size is > 50_000_000"
     end
-      
+
     data_io = @io.read(size)
     data = decode_tag(name, data_io)
     if data && !data.empty?
-      if self.keys.include?(name) 
+      if self.keys.include?(name)
         if self[name].is_a?(Array)
           unless self[name].include?(data)
             self[name] << data
@@ -553,7 +561,7 @@ class ID3v2 < DelegateClass(Hash)
           self[name] = [ self[name], data ]
         end
       else
-        self[name] = data 
+        self[name] = data
       end
 
       if name == "TPOS" && data =~ /(\d+)\s*\/\s*(\d+)/
@@ -564,7 +572,7 @@ class ID3v2 < DelegateClass(Hash)
 
     puts "self[#{name.inspect}] = #{self[name].inspect}" if $DEBUG
   end
-  
+
   ### runs thru @file one char at a time looking for best guess of first MPEG
   ###  frame, which should be first 0xff byte after id3v2 padding zero's
   def seek_to_v2_end
@@ -573,12 +581,12 @@ class ID3v2 < DelegateClass(Hash)
     end
     @io.seek(-1, IO::SEEK_CUR)
   end
-  
+
   ### convert an 32 integer to a syncsafe string
   def to_syncsafe(num)
     ( (num<<3) & 0x7f000000 )  + ( (num<<2) & 0x7f0000 ) + ( (num<<1) & 0x7f00 ) + ( num & 0x7f )
   end
-  
+
   ### this is especially useful for printing out APIC data because
   ### only the header of the APIC tag is of interest
   def pretty_header(str, chars=128)
@@ -586,4 +594,3 @@ class ID3v2 < DelegateClass(Hash)
   end
 
 end
-
