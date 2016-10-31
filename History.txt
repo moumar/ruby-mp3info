@@ -1,3 +1,7 @@
+=== 0.8.10 / 2016-10-31
+
+* bugfix on /^(T|COM|USLT)/ tags parsing
+
 === 0.8.9 / 2016-02-03
 
 * bugfix on JPEG picture parsing + testsuite
