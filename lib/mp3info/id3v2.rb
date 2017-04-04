@@ -277,8 +277,9 @@ class ID3v2 < DelegateClass(Hash)
       next if !pic.is_a?(String) or pic == ""
       pic.force_encoding 'BINARY'
       picture = []
-      jpg_regexp = Regexp.new("jpg|JPG|jpeg|JPEG".force_encoding("BINARY"),
+      jpg_regexp = Regexp.new("jpg|JPG|jpeg|JPEG|jfif|JFIF".force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
+
       png_regexp = Regexp.new("png|PNG".force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
       header = pic.unpack('a120').first.force_encoding "BINARY"
