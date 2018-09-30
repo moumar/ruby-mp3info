@@ -3,3 +3,4 @@ Session.vim
 pkg/
 fusil/fusil
 coverage/
+Gemfile.lock
