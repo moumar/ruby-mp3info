@@ -6,6 +6,7 @@ require "fileutils"
 require "stringio"
 require "mp3info/id3v2"
 require "mp3info/extension_modules"
+require "mp3info/chapters_parser"
 
 # ruby -d to display debugging infos
 
