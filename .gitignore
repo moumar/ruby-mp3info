@@ -4,3 +4,4 @@ pkg/
 fusil/fusil
 coverage/
 Gemfile.lock
+test/silence_copy.mp3

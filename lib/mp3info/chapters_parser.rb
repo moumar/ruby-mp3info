@@ -81,6 +81,8 @@ class Mp3Info
 
     def to_ms(hh_mm_ss_ms)
       DateTime.strptime("1970-01-01 #{hh_mm_ss_ms}", "%Y-%m-%d %H:%M:%S.%L").strftime("%Q").to_i
+    rescue => e
+      binding.pry
     end
   end
 end

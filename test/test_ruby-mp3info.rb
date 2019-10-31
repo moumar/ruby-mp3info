@@ -5,6 +5,9 @@ dir = File.dirname(__FILE__)
 $:.unshift("#{dir}/../lib/")
 $:.unshift("#{dir}/../test")
 
+require "bundler"
+Bundler.require
+
 require "helper"
 require "mp3info"
 require "fileutils"
@@ -13,9 +16,11 @@ require "zlib"
 require "yaml"
 
 GOT_ID3V2 = system("which id3v2 > /dev/null")
+GOT_FFPROBE = system("which ffprobe > /dev/null")
 
 class Mp3InfoTest < TestCase
   TEMP_FILE = File.join(File.dirname(__FILE__), "test_mp3info.mp3")
+  FIXTURE_FILE = File.join(File.dirname(__FILE__), "silence.mp3")
 
   DUMMY_TAG2 = {
     "COMM" => "comments",
@@ -340,6 +345,70 @@ class Mp3InfoTest < TestCase
 
     Mp3Info.open(TEMP_FILE) do |mp3|
       assert_equal "http://foo.bar", mp3.tag2["WOAR"]
+    end
+  end
+
+  SILENCE_LENGTH = 0.1
+  SILENCE_CHAPTERS = {
+    "CTOC" => {
+      :toc => {
+        :id => :toc,
+        :flags => {:top => true, :ordered => true},
+        :children_count => 2, :children_ids => [:chp0, :chp1]}},
+    "CHAP" => {
+      :chp0 => {
+        :chap_len => 60,
+        :flags => "\x00\x00",
+        :id => :chp0,
+        :start => 30,
+        :finish => 60,
+        :start_offset => 4294967295,
+        :finish_offset => 4294967295,
+        :sub_frames => [{:name => "TIT2",
+                         :sub_frame_len => 29,
+                         :flags => "\x00\x00",
+                         :body => {:encoding_index => 1, :title => "first chapter"}}]},
+      :chp1=>{
+        :chap_len => 62,
+        :flags => "\x00\x00",
+        :id=>:chp1,
+        :start => 60,
+        :finish => 100,
+        :start_offset => 4294967295,
+        :finish_offset => 4294967295,
+        :sub_frames => [{:name => "TIT2",
+                         :sub_frame_len => 31,
+                         :flags => "\x00\x00",
+                         :body => {:encoding_index => 1, :title => "second chapter"}}]}}}
+
+  def test_id3v2_chapters_read
+    Mp3Info.open(FIXTURE_FILE) do |mp3|
+      assert_equal mp3.tag2, mp3.tag2
+    end
+  end
+
+  FFPROBE_EXPECTED_OUT = {
+    "chapters" => [
+      {"id"=>0,
+       "time_base"=>"1/1000",
+       "start"=>50,
+       "start_time"=>"0.050000",
+       "end"=>100,
+       "end_time"=>"0.100000",
+       "tags"=>{"title"=>"single chapter"}}]}
+
+  def test_id3v2_chapters_write
+    return unless GOT_FFPROBE
+    tmp = 'test/silence_copy.mp3'
+    FileUtils.cp(TEMP_FILE, tmp)
+
+    begin
+      Mp3Info.open(tmp) do |mp3|
+        mp3.tag2.add_chapters([["00:00:00.05", "single chapter"]], SILENCE_LENGTH)
+      end
+      assert_equal FFPROBE_EXPECTED_OUT, JSON.parse(%x[ffprobe -v error -print_format json -show_chapters #{tmp}])
+    ensure
+      File.delete(tmp)
     end
   end
 
