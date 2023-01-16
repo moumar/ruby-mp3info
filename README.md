@@ -2,7 +2,7 @@
 
 * http://github.com/moumar/ruby-mp3info
 
-[![Build Status](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)](https://travis-ci.org/moumar/ruby-mp3info)
+[![Build Status](https://github.com/moumar/ruby-mp3info/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/moumar/ruby-mp3info/actions/workflows/test.yml)
 
 ## Description
 
