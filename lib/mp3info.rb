@@ -489,7 +489,7 @@ class Mp3Info
     loop do
       frame = find_next_frame
       yield frame
-      @io.seek(frame[:size] -4, File::SEEK_CUR)
+      @io.seek(frame[:size] - 4, File::SEEK_CUR)
       #puts "frame #{frame_count} len #{frame[:length]} br #{frame[:bitrate]} @io.pos #{@io.pos}"
       break if @io.eof?
     end

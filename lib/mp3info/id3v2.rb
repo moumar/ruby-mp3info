@@ -1,4 +1,5 @@
 # encoding: utf-8
+# frozen_string_literal: true
 # License:: Ruby
 # Author:: Guillaume Pierronnet (mailto:guillaume.pierronnet@gmail.com)
 
@@ -243,11 +244,11 @@ class ID3v2 < DelegateClass(Hash)
                 :description => "image"
               }
     options.update(opts)
-    jpg = Regexp.new( "^\xFF".force_encoding("BINARY"),
+    jpg = Regexp.new( String.new("^\xFF").force_encoding("BINARY"),
                  Regexp::FIXEDENCODING )
-    png = Regexp.new( "^\x89PNG".force_encoding("BINARY"),
+    png = Regexp.new( String.new("^\x89PNG").force_encoding("BINARY"),
                  Regexp::FIXEDENCODING )
-    gif = Regexp.new( "^\x89GIF".force_encoding("BINARY"),
+    gif = Regexp.new( String.new("^\x89GIF").force_encoding("BINARY"),
                  Regexp::FIXEDENCODING )
 
     mime = options[:mime]
@@ -277,10 +278,10 @@ class ID3v2 < DelegateClass(Hash)
       next if !pic.is_a?(String) or pic == ""
       pic.force_encoding 'BINARY'
       picture = []
-      jpg_regexp = Regexp.new("jpg|JPG|jpeg|JPEG|jfif|JFIF".force_encoding("BINARY"),
+      jpg_regexp = Regexp.new(String.new("jpg|JPG|jpeg|JPEG|jfif|JFIF").force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
 
-      png_regexp = Regexp.new("png|PNG".force_encoding("BINARY"),
+      png_regexp = Regexp.new(String.new("png|PNG").force_encoding("BINARY"),
                    Regexp::FIXEDENCODING )
       header = pic.unpack('a120').first.force_encoding "BINARY"
       mime_pos = 0
@@ -289,18 +290,18 @@ class ID3v2 < DelegateClass(Hash)
       if header.match jpg_regexp and not header.match png_regexp
         mime = "jpg"
         mime_pos = header =~ jpg_regexp
-        start = Regexp.new("\xFF\xD8".force_encoding("BINARY"),
+        start = Regexp.new(String.new("\xFF\xD8").force_encoding("BINARY"),
                 Regexp::FIXEDENCODING )
-        start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
+        start_with_anchor = Regexp.new(String.new("^\xFF\xD8").force_encoding("BINARY"),
                                        Regexp::FIXEDENCODING )
       end
 
       if header.match png_regexp and not header.match jpg_regexp
         mime = "png"
         mime_pos = header =~ png_regexp
-        start = Regexp.new("\x89PNG".force_encoding("BINARY"),
+        start = Regexp.new(String.new("\x89PNG").force_encoding("BINARY"),
                 Regexp::FIXEDENCODING )
-        start_with_anchor = Regexp.new("^\x89PNG".force_encoding("BINARY"),
+        start_with_anchor = Regexp.new(String.new("^\x89PNG").force_encoding("BINARY"),
                             Regexp::FIXEDENCODING )
       end
 
@@ -315,11 +316,11 @@ class ID3v2 < DelegateClass(Hash)
 
         if mime == "jpg"
           # inspect jpg image header (first 10 chars) for "\xFF\x00" (expect "\xFF")
-          trailing_null_byte = Regexp.new("(\377)(\000)".force_encoding('BINARY'),
+          trailing_null_byte = Regexp.new(String.new("(\377)(\000)").force_encoding('BINARY'),
                                           Regexp::FIXEDENCODING)
           md = data =~ trailing_null_byte
           if !md.nil? and md < 10
-            data.gsub!(trailing_null_byte, "\xff".force_encoding('BINARY'))
+            data.gsub!(trailing_null_byte, String.new("\xff").force_encoding('BINARY'))
           end
         end
       else
@@ -384,7 +385,7 @@ class ID3v2 < DelegateClass(Hash)
     #TODO add of crc
     #TODO add restrictions tag
 
-    tag = ""
+    tag = String.new
     @hash.each do |k, v|
       next unless v
       next if v.respond_to?("empty?") and v.empty?
@@ -410,7 +411,7 @@ class ID3v2 < DelegateClass(Hash)
       end
     end
 
-    tag_str = "ID3"
+    tag_str = String.new("ID3")
     #version_maj, version_min, unsync, ext_header, experimental, footer
     tag_str << [ 3, 0, "0000" ].pack("CCB4")
     tag_str << [to_syncsafe(tag.size)].pack("N")
@@ -458,8 +459,8 @@ class ID3v2 < DelegateClass(Hash)
               split_str = "\x00"
             end
             head, tail = raw_tag.split(split_str)
-            if head == "\xFF\xFE".force_encoding('binary')
-              rgx = Regexp.new("^\xFF\xFE\x00\x00".force_encoding("BINARY"))
+            if head == String.new("\xFF\xFE").force_encoding('binary')
+              rgx = Regexp.new(String.new("^\xFF\xFE\x00\x00").force_encoding("BINARY"))
               out = raw_tag.sub(rgx, '')
             elsif tail
               out = tail
@@ -591,7 +592,7 @@ class ID3v2 < DelegateClass(Hash)
   ### this is especially useful for printing out APIC data because
   ### only the header of the APIC tag is of interest
   def pretty_header(str, chars=128)
-    "#{str.unpack("a#{chars}").first}<<<...snip...>>>".inspect[1..-2]
+    "#{str.unpack(String.new("a#{chars}")).first}<<<...snip...>>>".inspect[1..-2]
   end
 
 end
