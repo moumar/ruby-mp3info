@@ -2,6 +2,10 @@
 
 * http://github.com/moumar/ruby-mp3info
 
+## Status: unmaintained
+
+🚨 This project is no longer actively maintained.
+
 [![Build Status](https://travis-ci.org/moumar/ruby-mp3info.png?branch=master)](https://travis-ci.org/moumar/ruby-mp3info)
 
 ## Description
