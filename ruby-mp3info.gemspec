@@ -20,6 +20,8 @@ Gem::Specification.new do |s|
   s.test_files = ["test/test_ruby-mp3info.rb"]
   s.license = 'GPL-3.0'
 
+  s.add_dependency(%q<bindata>, ["~> 2.4.4"])
+
   if s.respond_to? :specification_version then
     s.specification_version = 3
 

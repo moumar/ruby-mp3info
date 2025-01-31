@@ -5,6 +5,7 @@
 require "delegate"
 
 require "mp3info/extension_modules"
+load "mp3info/frame.rb"
 
 class ID3v2Error < StandardError ; end
 
@@ -12,13 +13,16 @@ class ID3v2Error < StandardError ; end
 # It works like a hash, where key represents the tag name as 3 or 4 upper case letters
 # (respectively related to 2.2 and 2.3+ tag) and value represented as array or raw value.
 # Written version is always 2.3.
-class ID3v2 < DelegateClass(Hash)
 
+Object.send(:remove_const, :ID3v2) rescue nil
+class ID3v2 < DelegateClass(Hash)
   TAGS = {
     "AENC" => "Audio encryption",
     "APIC" => "Attached picture",
+    "CHAP" => "Chapters",
     "COMM" => "Comments",
     "COMR" => "Commercial frame",
+    "CTOC" => "Table of contents",
     "ENCR" => "Encryption method registration",
     "EQUA" => "Equalization",
     "ETCO" => "Event timing codes",
@@ -261,6 +265,19 @@ class ID3v2 < DelegateClass(Hash)
     self["APIC"] = header + data.force_encoding('BINARY')
   end
 
+  def add_chapters(chapters, mp3_length)
+    chapter_frames = Mp3Info::ChaptersParser.new((mp3_length * 1000).to_i, chapters)
+
+    # TODO: multiple CTOC's; respect :ordered or not, add CHAPs outside of CTOC
+    ctoc = chapter_frames.ctocs[Mp3Info::ChaptersParser::TOC]
+    self['CTOC'] = ctoc.to_binary_s
+
+    self['CHAP'] = ctoc[:children_ids].map do |child_id|
+      # FIXME: CHAP has chap_len+flags before
+      chapter_frames.chaps[child_id.to_sym].to_binary_s[6..-1]
+    end.compact
+  end
+
   ### Returns an array of images:
   ###   [  ["01_.jpg", "Image Data in Binary String"],
   ###      ["02_.png", "Another Image in a String"]    ]
@@ -278,10 +295,10 @@ class ID3v2 < DelegateClass(Hash)
       pic.force_encoding 'BINARY'
       picture = []
       jpg_regexp = Regexp.new("jpg|JPG|jpeg|JPEG|jfif|JFIF".force_encoding("BINARY"),
-                   Regexp::FIXEDENCODING )
+                              Regexp::FIXEDENCODING )
 
       png_regexp = Regexp.new("png|PNG".force_encoding("BINARY"),
-                   Regexp::FIXEDENCODING )
+                              Regexp::FIXEDENCODING )
       header = pic.unpack('a120').first.force_encoding "BINARY"
       mime_pos = 0
 
@@ -290,7 +307,7 @@ class ID3v2 < DelegateClass(Hash)
         mime = "jpg"
         mime_pos = header =~ jpg_regexp
         start = Regexp.new("\xFF\xD8".force_encoding("BINARY"),
-                Regexp::FIXEDENCODING )
+                           Regexp::FIXEDENCODING )
         start_with_anchor = Regexp.new("^\xFF\xD8".force_encoding("BINARY"),
                                        Regexp::FIXEDENCODING )
       end
@@ -299,9 +316,9 @@ class ID3v2 < DelegateClass(Hash)
         mime = "png"
         mime_pos = header =~ png_regexp
         start = Regexp.new("\x89PNG".force_encoding("BINARY"),
-                Regexp::FIXEDENCODING )
+                           Regexp::FIXEDENCODING )
         start_with_anchor = Regexp.new("^\x89PNG".force_encoding("BINARY"),
-                            Regexp::FIXEDENCODING )
+                                       Regexp::FIXEDENCODING )
       end
 
       puts "analysing image: #{header.inspect}..." if $DEBUG
@@ -360,12 +377,12 @@ class ID3v2 < DelegateClass(Hash)
     @parsed = true
     begin
       case @version_maj
-        when 2
-          read_id3v2_2_frames
-        when 3, 4
-          # seek past extended header if present
-          @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
-          read_id3v2_3_frames
+      when 2
+        read_id3v2_2_frames
+      when 3, 4
+        # seek past extended header if present
+        @io.seek(@io.get_syncsafe - 4, IO::SEEK_CUR) if ext_header
+        read_id3v2_3_frames
       end
     rescue ID3v2Error => e
       warn("warning: id3v2 tag not fully parsed: #{e.message}")
@@ -433,19 +450,43 @@ class ID3v2 < DelegateClass(Hash)
       puts "encode #{name} lang: #{@options[:lang]}, value #{transcoded_value.inspect}" if $DEBUG
       s = [ 1, @options[:lang], "\xFE\xFF\x00\x00", transcoded_value].pack("ca3a*a*")
       return s
-    when /^T/
+   when /^T/
       transcoded_value.force_encoding("BINARY")
 
-	return "\x01" + transcoded_value
-      else
-        return value
+      return "\x01" + transcoded_value
+    else
+      return value
     end
   end
 
+  # TODO: nested ctoc
+  def decode_ctoc(ctoc_frame_body)
+    toc = Mp3Info::Frame::Toc.read(StringIO.new(ctoc_frame_body))
+    { toc[:id].to_sym => toc }
+  end
+
+  def decode_chap(chap_frame_body, size)
+    # unread size because only chapter frame knows how many TiT2 subframes
+    chap = ""
+    chap << [size].pack("N") # chap size
+    chap << "\x00"*2 # flags
+    chap << chap_frame_body
+    chapter = if $DEBUG && $DEBUG_READ
+      BinData::trace_reading do
+        Mp3Info::Frame::Chapter.read(StringIO.new(chap))
+      end
+    else
+      Mp3Info::Frame::Chapter.read(StringIO.new(chap))
+    end
+
+    { chapter[:id].to_sym => chapter }
+  end
+
   ### Read a tag from file and perform UNICODE translation if needed
-  def decode_tag(name, raw_value)
-    puts("decode_tag(#{name.inspect}, #{raw_value.inspect})") if $DEBUG
+  def decode_tag(name, raw_value, size)
+    # puts("decode_tag(#{name.inspect} of size=#{size}: #{raw_value.inspect})") if $DEBUG
     if name =~ /^(T|COM|USLT)/
+      # Mp3Info::Frame::Frame.new.read(@io).string
       begin
         if name =~ /^(COM|USLT)/
           encoding_index, lang, raw_tag = raw_value.unpack("ca3a*")
@@ -470,13 +511,13 @@ class ID3v2 < DelegateClass(Hash)
               return nil
             end
           end
-          puts "COM tag found. encoding: #{encoding_index} lang: #{lang} str: #{out.inspect}" if $DEBUG
+          puts "COM tag found. encoding: #{encoding_index} lang: #{lang} str: #{out.inspect}" if $DEBUG && $DEBUG_READ
         else
           encoding_index = raw_value.getbyte(0) # language encoding (see TEXT_ENCODINGS constant)
           out = raw_value[1..-1]
         end
-        # we need to convert the string in order to match
-        # the requested encoding
+
+        # decode_prefixed_string!(encoding_index, out)
         if TEXT_ENCODINGS[encoding_index]
           if encoding_index == 1
             out = Mp3Info::EncodingHelper.decode_utf16(out)
@@ -495,8 +536,30 @@ class ID3v2 < DelegateClass(Hash)
         warn "warning: cannot decode tag #{name} with raw value #{raw_value.inspect}: #{e}"
         return nil
       end
+    elsif name =~ /^(CTOC|CHAP)/ # return hashes with { element_id => hash }
+      begin
+        if name == 'CTOC'
+          return decode_ctoc(raw_value)
+        elsif name == 'CHAP'
+          return decode_chap(raw_value, size)
+        end
+      rescue => e
+        require 'pry'; binding.pry if $DEBUG
+
+        warn "warning: cannot decode chapters #{name} with raw value #{raw_value.inspect}: #{e}"
+        return {}
+      end
     else
       return raw_value
+    end
+  end
+
+  def read_idv2_3_size(io)
+    puts "@version_maj = #{@version_maj}" if $DEBUG && $DEBUG_READ
+    if @version_maj == 4
+      size = io.get_syncsafe
+    else
+      size = io.get32bits
     end
   end
 
@@ -507,16 +570,12 @@ class ID3v2 < DelegateClass(Hash)
       name = @io.read(4)
       if name.nil? || name.getbyte(0) == 0 || name == "MP3e" #bug caused by old tagging application "mp3ext" ( http://www.mutschler.de/mp3ext/ )
         @io.seek(-4, IO::SEEK_CUR)    # 1. find a padding zero,
-	seek_to_v2_end
+        seek_to_v2_end
         break
       else
-	if @version_maj == 4
-	  size = @io.get_syncsafe
-	else
-	  size = @io.get32bits
-	end
+        size = read_idv2_3_size(@io)
         @io.seek(2, IO::SEEK_CUR)     # skip flags
-        puts "name '#{name}' size #{size}" if $DEBUG
+        puts "name '#{name}' size #{size}" if $DEBUG && $DEBUG_READ
         add_value_to_tag2(name, size)
       end
       break if @io.pos >= @tag_length # 2. reach length from header
@@ -534,7 +593,7 @@ class ID3v2 < DelegateClass(Hash)
         break
       else
         size = (@io.getbyte << 16) + (@io.getbyte << 8) + @io.getbyte
-	add_value_to_tag2(name, size)
+        add_value_to_tag2(name, size)
         break if @io.pos >= @tag_length
       end
     end
@@ -544,20 +603,20 @@ class ID3v2 < DelegateClass(Hash)
   ### read lang_encoding, decode data if unicode and
   ### create an array if the key already exists in the tag
   def add_value_to_tag2(name, size)
-    puts "add_value_to_tag2" if $DEBUG
-
     if size > 50_000_000
       raise ID3v2Error, "tag size is > 50_000_000"
     end
 
     data_io = @io.read(size)
-    data = decode_tag(name, data_io)
+    data = decode_tag(name, data_io, size)
     if data && !data.empty?
       if self.keys.include?(name)
         if self[name].is_a?(Array)
           unless self[name].include?(data)
             self[name] << data
           end
+        elsif self[name].is_a?(Hash)
+          self[name].merge!(data)
         else
           self[name] = [ self[name], data ]
         end
@@ -571,7 +630,7 @@ class ID3v2 < DelegateClass(Hash)
       end
     end
 
-    puts "self[#{name.inspect}] = #{self[name].inspect}" if $DEBUG
+    # puts "self[#{name.inspect}] = #{self[name].inspect}" if $DEBUG
   end
 
   ### runs thru @file one char at a time looking for best guess of first MPEG
